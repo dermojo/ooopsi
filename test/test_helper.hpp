@@ -179,7 +179,7 @@ public:
 // de-virtualize the virtual call...)
 DO_NOT_OPTIMIZE void doFoo(FooBase* foo)
 {
-    foo->foo();
+    foo->foo(); // NOLINT
 }
 
 /// trigger calling a pure virtual function (from a constructor)
@@ -215,7 +215,7 @@ DO_NOT_OPTIMIZE static void failDeletedVirtual()
     unsigned char buffer[128];
     auto foo = new (buffer) Foo();
     auto bar = reinterpret_cast<Bar*>(foo);
-    delete bar;
+    delete bar; // NOLINT
 }
 
 

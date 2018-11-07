@@ -72,3 +72,40 @@ else()
     target_compile_options(tests PUBLIC -Wall -Weffc++ -Werror)
     target_link_libraries(tests pthread)
 endif()
+
+
+option(ENABLE_ASAN "Enable address sanitizer instrumentation" OFF)
+
+if(ENABLE_ASAN)
+    set(CMAKE_CXX_FLAGS    "${CMAKE_CXX_FLAGS}    -fsanitize=address")
+    set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fsanitize=address")
+endif()
+
+option(ENABLE_UBSAN "Enable UB sanitizer instrumentation" OFF)
+
+if(ENABLE_UBSAN)
+    set(CMAKE_CXX_FLAGS    "${CMAKE_CXX_FLAGS}    -fsanitize=undefined")
+    set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fsanitize=undefined")
+endif()
+
+option(ENABLE_COVERAGE "Enable code coverage flags" OFF)
+
+
+
+# clang tidy support (using version 6.0 atm)
+# (since this is a header-only library, it's sufficient to check a single source that includes
+#  everything)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+if(NOT DEFINED CLANG_TIDY)
+    set(CLANG_TIDY clang-tidy-6.0)
+endif()
+list(APPEND CLANG_TIDY_ARGS
+    -p .
+    ${CMAKE_SOURCE_DIR}/test/example.cpp
+)
+
+add_custom_target(
+    tidy
+    COMMAND ${CLANG_TIDY} ${CLANG_TIDY_ARGS}
+    COMMENT "running clang tidy"
+)
