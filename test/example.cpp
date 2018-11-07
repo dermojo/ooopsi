@@ -1,4 +1,6 @@
+#ifdef USE_OOOPSI
 #include "ooopsi.hpp"
+#endif // USE_OOOPSI
 
 #include "test_helper.hpp"
 
@@ -17,12 +19,16 @@ public:
 
 int main(int argc, char** argv)
 {
+#ifdef USE_OOOPSI
     ooopsi::HandlerSetup setup;
+#endif // USE_OOOPSI
 
     // list of supported actions
     const std::vector<Action> actions = {
+#ifdef USE_OOOPSI
         { "trace", "Print a stack trace", [] { ooopsi::printStackTrace(nullptr, false); } },
         { "abort", "Call ooopsi::abort()", [] { ooopsi::abort("ooops"); } },
+#endif // USE_OOOPSI
         { "stdabort", "Call std::abort()", [] { std::abort(); } },
         { "throw-exc", "Terminate due to an uncaught std::exception", [] { failThrowStd(); } },
         { "throw-syserr", "Terminate due to an uncaught std::system_error",

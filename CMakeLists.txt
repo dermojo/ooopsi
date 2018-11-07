@@ -11,7 +11,7 @@ include_directories(SYSTEM ${GTEST_INCLUDE_DIR})
 # Build targets
 #
 
-add_library(ooopsi
+add_library(ooopsi SHARED
         src/ooopsi.cpp
         src/handlers.cpp
         src/itanium_abi.cpp
@@ -47,7 +47,7 @@ target_include_directories(example PRIVATE include)
 target_link_libraries(tests ${GTEST_LIBRARY} ${GTEST_MAIN_LIBRARY})
 # and of course against this library
 target_link_libraries(tests ooopsi)
-target_link_libraries(example ooopsi)
+#target_link_libraries(example ooopsi)
 
 # add libunwind for all *NIX systems
 if (UNIX)
