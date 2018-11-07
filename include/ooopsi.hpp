@@ -29,25 +29,6 @@ typedef void (*LogFunc)(const char*);
 void printStackTrace(LogFunc logFunc, bool inSignalHandler,
                      const uintptr_t* faultAddr = nullptr) noexcept;
 
-enum class DemangleOption
-{
-    demangle,
-    dont_demangle,
-    if_not_in_sighandler,
-};
-
-class Config
-{
-public:
-    LogFunc logFunc;
-    DemangleOption demangle;
-};
-
-Config getConfig() noexcept;
-
-void printStackTrace(Config cfg = getConfig(), bool inSignalHandler = false,
-                     const uintptr_t* faultAddr = nullptr) noexcept;
-
 
 /// Aborts the current process' execution, similar to std::abort, but logs a stack trace and the
 /// given reason (if given).
