@@ -25,7 +25,7 @@
 
 // We need to disable optimizations for some functions, or else they won't crash... ;-)
 #ifdef _MSC_VER
-#define DO_NOT_OPTIMIZE
+#define DO_NOT_OPTIMIZE __pragma(optimize("", off))
 #else
 #ifdef __clang__
 #define DO_NOT_OPTIMIZE [[clang::optnone]]
