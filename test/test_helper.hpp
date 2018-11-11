@@ -24,10 +24,14 @@
 #include <system_error>
 
 // We need to disable optimizations for some functions, or else they won't crash... ;-)
+#ifdef _MSC_VER
+#define DO_NOT_OPTIMIZE
+#else
 #ifdef __clang__
 #define DO_NOT_OPTIMIZE [[clang::optnone]]
 #else
 #define DO_NOT_OPTIMIZE [[gnu::optimize("0")]]
+#endif
 #endif
 
 static void failStackOverflow()
@@ -42,11 +46,13 @@ static void failStackOverflow()
         failStackOverflow();
 }
 
+#ifndef _MSC_VER
 static void failSegmentationFault()
 {
     int* p = (int*)0x12345678;
     *p = 0;
 }
+#endif
 
 
 #ifndef _WIN32 // not possible on Windows (AFAIK)
@@ -139,11 +145,16 @@ DO_NOT_OPTIMIZE static int failFloatingPointIntDiv()
 }
 
 // yes, the following code is intentionally bad :)
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4297)
+#else
 #pragma GCC diagnostic push
 #ifdef __clang__
 #pragma GCC diagnostic ignored "-Wexceptions"
 #else
 #pragma GCC diagnostic ignored "-Wterminate"
+#endif
 #endif
 static void failThrowStd() noexcept
 {
@@ -161,7 +172,11 @@ static void failThrowInt() noexcept
 {
     throw 42;
 }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#else
 #pragma GCC diagnostic pop
+#endif
 
 class FooBase;
 static void doFoo(FooBase*);
