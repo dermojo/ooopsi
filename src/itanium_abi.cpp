@@ -12,7 +12,9 @@
 
 #include "internal.hpp"
 
+#ifndef _MSC_VER
 #include <cxxabi.h>
+#endif // !_MSC_VER
 
 // For Windows, see 'handlers.cpp' - these are covered by the onTerminate() function.
 // TODO: test with MSVC

@@ -20,8 +20,10 @@
 #include <libunwind.h>
 #endif
 
+#ifndef _MSC_VER
 // for compilers that support it...
 #include <cxxabi.h>
+#endif
 
 #include <tuple> // for std::ignore
 
