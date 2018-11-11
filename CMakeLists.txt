@@ -15,13 +15,21 @@ include_directories(SYSTEM ${GTEST_INCLUDE_DIR})
 # Build targets
 #
 
+if(MSVC)
+add_library(ooopsi
+        src/ooopsi.cpp
+        src/handlers.cpp
+        src/itanium_abi.cpp
+        src/stacktrace.cpp
+    )
+else()
 add_library(ooopsi SHARED
         src/ooopsi.cpp
         src/handlers.cpp
         src/itanium_abi.cpp
         src/stacktrace.cpp
     )
-
+endif()
 # Every library has unit tests, of course
 add_executable(tests
         test/test_abort.cpp
