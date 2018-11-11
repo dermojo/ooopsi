@@ -4,12 +4,15 @@ project(ooopsi VERSION 0.1 LANGUAGES CXX)
 
 if(MSVC)
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+    set(gtest_force_shared_crt ON)
 endif()
+
+add_subdirectory(extern/googletest)
 
 # Setup testing using GTEST
 enable_testing()
-find_package(GTest REQUIRED)
-include_directories(SYSTEM ${GTEST_INCLUDE_DIR})
+#find_package(GTest REQUIRED)
+#include_directories(SYSTEM ${GTEST_INCLUDE_DIR})
 
 #
 # Build targets
@@ -56,7 +59,7 @@ target_include_directories(tests PRIVATE include)
 target_include_directories(example PRIVATE include)
 
 # Link test executable against gtest & gtest_main
-target_link_libraries(tests ${GTEST_LIBRARY} ${GTEST_MAIN_LIBRARY})
+target_link_libraries(tests gtest_main)
 # and of course against this library
 target_link_libraries(tests ooopsi)
 #target_link_libraries(example ooopsi)
