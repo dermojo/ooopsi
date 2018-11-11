@@ -7,6 +7,7 @@
 #define INTERNAL_HPP_
 
 #include <array>
+#include <cinttypes>
 #include <cstdint>
 #include <cstring>
 
@@ -54,7 +55,7 @@ void formatReason(char (&buffer)[N], const char* what, const char* detail = null
     if (addr)
     {
         size_t len = strlen(buffer);
-        snprintf(buffer + len, N - len, " @ 0x%lx", *addr);
+        snprintf(buffer + len, N - len, " @ 0x%" PRIu64, *addr);
     }
 }
 

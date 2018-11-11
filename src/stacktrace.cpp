@@ -118,7 +118,8 @@ static void logFrame(LogFunc logFunc, const bool inSignalHandler, unsigned long 
     const char* prefix = "  ";
     if (faultAddr && *faultAddr == address)
         prefix = "=>";
-    snprintf(messageBuffer, sizeof(messageBuffer), "%s#%-2lu  %016lx", prefix, num, address);
+    snprintf(messageBuffer, sizeof(messageBuffer), "%s#%-2lu  %016" PRIuPTR "", prefix, num,
+             address);
 
     if (sym)
     {
@@ -132,7 +133,7 @@ static void logFrame(LogFunc logFunc, const bool inSignalHandler, unsigned long 
         }
         if (bufLen < sizeof(messageBuffer))
         {
-            snprintf(messageBuffer + bufLen, sizeof(messageBuffer) - bufLen, "+0x%lx", offset);
+            snprintf(messageBuffer + bufLen, sizeof(messageBuffer) - bufLen, "+0x%" PRIuPTR, offset);
         }
     }
     // else: no symbol name, keep the address
