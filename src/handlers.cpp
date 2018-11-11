@@ -42,7 +42,7 @@ static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
     const uintptr_t* addr = nullptr;
 
     // TODO: how to get the function name?
-    printf("winExc, addr=%llx\n", excRec.ExceptionAddress);
+    printf("winExc, addr=%p\n", excRec.ExceptionAddress);
     switch (excRec.ExceptionCode)
     {
     case EXCEPTION_ACCESS_VIOLATION:
@@ -103,7 +103,7 @@ static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
             // the third element contains the underlying NTSTATUS code that caused the exception
             addr = &excRec.ExceptionInformation[1];
             uint64_t status = excRec.ExceptionInformation[2];
-            snprintf(detailBuf, sizeof(detailBuf), "NTSTATUS=%lu", status);
+            snprintf(detailBuf, sizeof(detailBuf), "NTSTATUS=%" PRIu64, status);
             detail = detailBuf;
         }
         break;
