@@ -6,7 +6,11 @@
 #include "ooopsi.hpp"
 
 #include <cstdio>
+#ifdef _MSC_VER
+#include <stdlib.h> // _exit()
+#else
 #include <unistd.h>
+#endif
 
 namespace ooopsi
 {
@@ -51,8 +55,7 @@ LogFunc getAbortLogFunc() noexcept
 }
 
 [[noreturn]] void abort(const char* reason, bool printTrace, bool inSignalHandler,
-                        const uintptr_t* faultAddr)
-{
+                        const uintptr_t* faultAddr) {
     if (reason)
     {
         s_logFunc(reason);
@@ -72,7 +75,7 @@ LogFunc getAbortLogFunc() noexcept
     _exit(OOOPSI_EXIT_CODE);
 }
 
-[[noreturn]] void abort(const char* reason, bool printTrace, bool inSignalHandler)
+  [[noreturn]] void abort(const char* reason, bool printTrace, bool inSignalHandler)
 {
     abort(reason, printTrace, inSignalHandler, nullptr);
 }
