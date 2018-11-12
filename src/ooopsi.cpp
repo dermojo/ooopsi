@@ -20,7 +20,6 @@ static void logToStderr(const char* message) noexcept
 {
     if (message != nullptr)
     {
-        // fprintf(stderr, "%s\n", message);
         fputs(message, stderr);
         fputc('\n', stderr);
     }
@@ -51,7 +50,7 @@ LogFunc getAbortLogFunc() noexcept
 }
 
 [[noreturn]] void abort(const char* reason, bool printTrace, bool inSignalHandler,
-                        const uintptr_t* faultAddr)
+                        const pointer_t* faultAddr)
 {
     if (reason != nullptr)
     {

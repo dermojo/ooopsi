@@ -32,6 +32,8 @@ namespace ooopsi
 /// (see setAbortLogFunc() for details)
 typedef void (*LogFunc)(const char*);
 
+/// Pointer alias. Avoid uint64_t/uintptr_t because they are a PITA when using printf.
+using pointer_t = unsigned long long;
 
 /// Prints a stack trace using the given log function.
 /// The second argument indicates whether this function is called from a signal handler.
@@ -39,7 +41,7 @@ typedef void (*LogFunc)(const char*);
 /// The optional third argument is the address of the fault, used to highlight the according
 /// line in the backtrace (if found).
 OOOPSI_EXPORT void printStackTrace(LogFunc logFunc, bool inSignalHandler,
-                                   const uintptr_t* faultAddr = nullptr) noexcept;
+                                   const pointer_t* faultAddr = nullptr) noexcept;
 
 
 /// Aborts the current process' execution, similar to std::abort, but logs a stack trace and the

@@ -9,10 +9,7 @@
 // private library header
 #include "internal.hpp"
 
-#ifdef _WIN32
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
+#ifdef OOOPSI_WINDOWS
 #include <windows.h>
 // order matters..
 #pragma warning(push)
@@ -24,7 +21,7 @@
 #endif
 
 // for compilers that support it...
-#ifndef _MSC_VER
+#ifndef OOOPSI_MSVC
 #include <cxxabi.h>
 #endif
 
@@ -39,8 +36,8 @@
 namespace ooopsi
 {
 
-#ifdef _WIN32
-#if defined(__GNUC__) && !defined(_GLIBCXX_HAS_GTHREADS)
+#ifdef OOOPSI_WINDOWS
+#if defined(OOOPSI_MINGW) && !defined(_GLIBCXX_HAS_GTHREADS)
 // MinGW without thread support: create a small wrapper as a workaround
 class DbgHelpMutex
 {
@@ -133,7 +130,7 @@ size_t demangle(const char* name, char* buf, const size_t bufSize, const bool in
     {
         s_demangleBuffer = demangledName;
     }
-#elif defined(_MSC_VER)
+#elif defined(OOOPSI_MSVC)
 
     {
         const std::lock_guard<DbgHelpMutex> lock(s_dbgHelpMutex);
@@ -148,13 +145,14 @@ size_t demangle(const char* name, char* buf, const size_t bufSize, const bool in
     // not supported (yet)
     strncpy(buf, name, bufSize);
 
-#endif // !_CXXABI_H
+#endif // _CXXABI_H
 
     return strlen(buf);
 }
 
-static void logFrame(LogFunc logFunc, const bool inSignalHandler, uint64_t num, uintptr_t address,
-                     const char* sym, uintptr_t offset, const uintptr_t* faultAddr)
+static void logFrame(LogFunc logFunc, const bool inSignalHandler, unsigned int num,
+                     pointer_t address, const char* sym, pointer_t offset,
+                     const pointer_t* faultAddr)
 {
     char messageBuffer[512];
     const char* prefix = "  ";
@@ -162,8 +160,7 @@ static void logFrame(LogFunc logFunc, const bool inSignalHandler, uint64_t num, 
     {
         prefix = "=>";
     }
-    snprintf(messageBuffer, sizeof(messageBuffer),
-             "%s#%-2" OOOPSI_FMT_I64 "u  %016" OOOPSI_FMT_I64 "x", prefix, num, address);
+    snprintf(messageBuffer, sizeof(messageBuffer), "%s#%-2u  %016llx", prefix, num, address);
 
     if (sym != nullptr)
     {
@@ -177,8 +174,7 @@ static void logFrame(LogFunc logFunc, const bool inSignalHandler, uint64_t num, 
         }
         if (bufLen < sizeof(messageBuffer))
         {
-            snprintf(messageBuffer + bufLen, sizeof(messageBuffer) - bufLen,
-                     "+0x%" OOOPSI_FMT_I64 "x", offset);
+            snprintf(messageBuffer + bufLen, sizeof(messageBuffer) - bufLen, "+0x%llx", offset);
         }
     }
     // else: no symbol name, keep the address
@@ -188,7 +184,7 @@ static void logFrame(LogFunc logFunc, const bool inSignalHandler, uint64_t num, 
 
 
 void printStackTrace(LogFunc logFunc, const bool inSignalHandler,
-                     const uintptr_t* faultAddr) noexcept
+                     const pointer_t* faultAddr) noexcept
 {
     if (logFunc == nullptr)
     {
@@ -198,7 +194,7 @@ void printStackTrace(LogFunc logFunc, const bool inSignalHandler,
     logFunc("---------- BACKTRACE ----------");
 
 // OS-specific back trace
-#ifdef _WIN32
+#ifdef OOOPSI_WINDOWS
     {
         const std::lock_guard<DbgHelpMutex> lock(s_dbgHelpMutex);
         // note: we're undecorating the name ourselves - gives much more infos!
@@ -238,14 +234,15 @@ void printStackTrace(LogFunc logFunc, const bool inSignalHandler,
         SymCleanup(thisProc);
     }
 
-#else
+#elif defined(OOOPSI_LINUX)
+
     unw_cursor_t cursor;
     unw_context_t context;
 
     unw_getcontext(&context);
     unw_init_local(&cursor, &context);
 
-    size_t i = 0;
+    unsigned int i = 0;
     while (unw_step(&cursor) > 0)
     {
         unw_word_t offset, pc;
@@ -259,7 +256,7 @@ void printStackTrace(LogFunc logFunc, const bool inSignalHandler,
         {
             // we reached the maximum depth
             char messageBuffer[512];
-            snprintf(messageBuffer, sizeof(messageBuffer), "  #%-2zu ... (truncating)", i);
+            snprintf(messageBuffer, sizeof(messageBuffer), "  #%-2u ... (truncating)", i);
             logFunc(messageBuffer);
             break;
         }
@@ -275,7 +272,11 @@ void printStackTrace(LogFunc logFunc, const bool inSignalHandler,
         i++;
     }
 
-#endif
+#else
+
+#error "Unsupported platform!"
+
+#endif // OOOPSI_WINDOWS/LINUX
 
     logFunc("-------------------------------");
     // END

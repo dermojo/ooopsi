@@ -4,7 +4,7 @@
 #include <gtest/gtest.h>
 
 // allow detection of wine because there are some differences...
-#ifdef _WIN32
+#ifdef OOOPSI_WINDOWS
 bool isWine() noexcept
 {
     static int is_wine = -1;
@@ -19,18 +19,18 @@ bool isWine() noexcept
     }
     return is_wine == 1;
 }
-#else
+#else  // !OOOPSI_WINDOWS
 bool isWine() noexcept
 {
     return false;
 }
-#endif
+#endif // OOOPSI_WINDOWS
 
 
 /*
  * GoogleTest uses a different RegEx engine on Windows ... :-(
  */
-#ifdef _WIN32
+#ifdef OOOPSI_WINDOWS
 #define LINENUM_REGEX "\\d+"
 #define BACKTRACE_REGEX_WINE ".*\n.*BACKTRACE.*"
 // TODO: the regex engine is too limited to check this
@@ -50,7 +50,8 @@ static std::string makeBtRegex(const char* prefix)
     return re;
 }
 
-#else
+#else // !OOOPSI_WINDOWS
+
 #define LINENUM_REGEX "[0-9]+"
 // ensure that known symbols are found
 #define BACKTRACE_REGEX ".*BACKTRACE.*__libc_start_main.*"
@@ -64,7 +65,7 @@ static std::string makeBtRegex(const char* prefix)
     return re;
 }
 
-#endif
+#endif // OOOPSI_WINDOWS
 
 static ooopsi::HandlerSetup s_setup;
 
@@ -171,18 +172,17 @@ TEST(Abort, SegmentationFaultDeath)
     }
     else
     {
-#ifdef _WIN32
+#ifdef OOOPSI_WINDOWS
         ASSERT_DEATH(failStackOverflow(),
                      "!!! TERMINATING DUE TO SEGMENTATION FAULT \\(stack overflow\\)");
 #else
         ASSERT_DEATH(failStackOverflow(),
                      "!!! TERMINATING DUE TO SEGMENTATION FAULT \\(stack overflow\\)"
-                     " @ 0x[0-9a-f]+" BACKTRACE_TRUNCATED_REGEX
-                     );
+                     " @ 0x[0-9a-f]+" BACKTRACE_TRUNCATED_REGEX);
 #endif
     }
 
-#ifndef _WIN32
+#ifndef OOOPSI_WINDOWS
     // bus error
     ASSERT_DEATH(failBusError(), makeBtRegex("!!! TERMINATING DUE TO BUS ERROR"));
 #endif // _WIN32

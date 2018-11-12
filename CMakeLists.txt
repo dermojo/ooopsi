@@ -41,8 +41,8 @@ add_dependencies(runtest tests)
 # compiling the library, and will be added to consumers' build
 # paths.
 target_include_directories(ooopsi PUBLIC include)
-target_include_directories(tests PRIVATE include)
-target_include_directories(example PRIVATE include)
+target_include_directories(tests PRIVATE include src)
+target_include_directories(example PRIVATE include src)
 
 # Link test executable against gtest & gtest_main
 target_link_libraries(tests ${GTEST_LIBRARY} ${GTEST_MAIN_LIBRARY})
@@ -98,9 +98,9 @@ option(ENABLE_COVERAGE "Enable code coverage flags" OFF)
 
 
 # clang tidy support (using version 6.0 atm)
-# (since this is a header-only library, it's sufficient to check a single source that includes
-#  everything)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_USE_RESPONSE_FILE_FOR_INCLUDES OFF)
+
 if(NOT DEFINED CLANG_TIDY)
     set(CLANG_TIDY clang-tidy-6.0)
 endif()

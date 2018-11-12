@@ -11,14 +11,12 @@
 #include <system_error>
 #include <tuple> // for std::ignore
 
-#ifdef _WIN32
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
+#ifdef OOOPSI_WINDOWS
 #include <windows.h>
-#else
+#endif
+#ifdef OOOPSI_LINUX
 #include <sys/ucontext.h>
-#endif // _WIN32
+#endif
 
 #include <csignal>
 #include <cstring>
@@ -27,7 +25,7 @@ namespace ooopsi
 {
 
 
-#ifdef _WIN32 // Windows-specific handlers
+#ifdef OOOPSI_WINDOWS // Windows-specific handlers
 
 /**
  * Handler for Windows SEH exceptions.
@@ -39,7 +37,7 @@ static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
     const char* detail = nullptr;
     char detailBuf[64];
     const auto& excRec = *excInfo->ExceptionRecord;
-    const uintptr_t* addr = nullptr;
+    const pointer_t* addr = nullptr;
 
     switch (excRec.ExceptionCode)
     {
@@ -49,7 +47,7 @@ static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
         {
             // the first element contains a read/write flag
             // the second element contains the virtual address of the inaccessible data
-            addr = reinterpret_cast<const uintptr_t*>(&excRec.ExceptionInformation[1]);
+            addr = reinterpret_cast<const pointer_t*>(&excRec.ExceptionInformation[1]);
         }
         break;
     case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
@@ -99,7 +97,7 @@ static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
             // the first element contains a read/write flag
             // the second element contains the virtual address of the inaccessible data
             // the third element contains the underlying NTSTATUS code that caused the exception
-            addr = reinterpret_cast<const uintptr_t*>(&excRec.ExceptionInformation[1]);
+            addr = reinterpret_cast<const pointer_t*>(&excRec.ExceptionInformation[1]);
             uint64_t status = excRec.ExceptionInformation[2];
             snprintf(detailBuf, sizeof(detailBuf), "NTSTATUS=%llu", status);
             detail = detailBuf;
@@ -140,7 +138,7 @@ static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
     {
         char reason[256];
         formatReason(reason, what, detail, addr);
-        abort(reason, true, true, (const uintptr_t*)&excRec.ExceptionAddress);
+        abort(reason, true, true, (const pointer_t*)&excRec.ExceptionAddress);
     }
     else
     {
@@ -186,7 +184,7 @@ static void onPureCall()
     ooopsi::abort(reason);
 }
 
-#else  // !_WIN32
+#else  // !OOOPSI_WINDOWS
 
 /// for systems supporting it, statically reserve it as an actual stack
 static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
@@ -202,15 +200,15 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
     char buf[64];
     const char* what = "";
     const char* detail = nullptr;
-    const uintptr_t* addr = nullptr;
+    const pointer_t* addr = nullptr;
 
     // determine were we got called from
-    const uintptr_t* faultAddr = nullptr;
+    const pointer_t* faultAddr = nullptr;
     auto* context = static_cast<const ucontext_t*>(ctx);
     if (context != nullptr)
     {
-        static_assert(sizeof(greg_t) == sizeof(uintptr_t), "something is odd here...");
-        faultAddr = reinterpret_cast<const uintptr_t*>(&context->uc_mcontext.gregs[REG_RIP]);
+        static_assert(sizeof(greg_t) == sizeof(pointer_t), "something is odd here...");
+        faultAddr = reinterpret_cast<const pointer_t*>(&context->uc_mcontext.gregs[REG_RIP]);
     }
 
     switch (sig)
@@ -233,8 +231,8 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
                 // Let's try to distinguish the usual "segmentation fault" from a
                 // "stack overflow": Check if the address causing the fault is "slightly"
                 // past the end of the stack.
-                auto stackPtr = static_cast<uintptr_t>(context->uc_mcontext.gregs[REG_RSP]);
-                auto stackAddr = reinterpret_cast<uintptr_t>(info->si_addr);
+                auto stackPtr = static_cast<pointer_t>(context->uc_mcontext.gregs[REG_RSP]);
+                auto stackAddr = reinterpret_cast<pointer_t>(info->si_addr);
                 constexpr auto rangeLimit = 1024;
                 if (stackAddr < stackPtr && stackPtr - stackAddr < rangeLimit)
                 {
@@ -254,7 +252,7 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
         default:
             break;
         }
-        addr = reinterpret_cast<uintptr_t*>(&info->si_addr);
+        addr = reinterpret_cast<pointer_t*>(&info->si_addr);
         break;
     }
     case SIGBUS:
@@ -280,7 +278,7 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
         default:
             break;
         }
-        addr = reinterpret_cast<uintptr_t*>(&info->si_addr);
+        addr = reinterpret_cast<pointer_t*>(&info->si_addr);
         break;
     }
     case SIGILL:
@@ -315,7 +313,7 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
         default:
             break;
         }
-        addr = reinterpret_cast<uintptr_t*>(&info->si_addr);
+        addr = reinterpret_cast<pointer_t*>(&info->si_addr);
         break;
     }
     case SIGFPE:
@@ -350,7 +348,7 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
         default:
             break;
         }
-        addr = reinterpret_cast<uintptr_t*>(&info->si_addr);
+        addr = reinterpret_cast<pointer_t*>(&info->si_addr);
         break;
     }
     default:
@@ -366,7 +364,7 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
     formatReason(reason, what, detail, addr);
     abort(reason, true, true, faultAddr);
 }
-#endif // _WIN32
+#endif // OOOPSI_WINDOWS
 
 /// What to do when std::terminate is called
 static void onTerminate()
@@ -429,8 +427,9 @@ static void onTerminate()
     }
     else
     {
-#ifdef _WIN32
+#ifdef OOOPSI_MINGW
         /*
+         * MinGW:
          * Overwriting libstdc++'s ABI functions doesn't work here due to differences in shared
          * library loading and symbol resolution.
          * Therefore, check if we were called from __cxa_pure_*.
@@ -438,7 +437,7 @@ static void onTerminate()
         struct Function
         {
             const char* symbolName;
-            uintptr_t symbolAddress;
+            pointer_t symbolAddress;
             const char* abortMessage;
         };
         std::array<Function, 2> possibleCallers{
@@ -456,13 +455,13 @@ static void onTerminate()
         {
             for (auto& func : possibleCallers)
             {
-                auto ptr = GetProcAddress(libstdcpp, func.symbolName);
-                func.symbolAddress = (uintptr_t)ptr;
+                FARPROC ptr = GetProcAddress(libstdcpp, func.symbolName);
+                func.symbolAddress = reinterpret_cast<pointer_t>(ptr);
             }
 
             for (WORD i = 0; i < numberOfFrames; ++i)
             {
-                const auto curFunc = (uintptr_t)stackFrames[i];
+                const auto curFunc = reinterpret_cast<pointer_t>(stackFrames[i]);
                 for (const auto& func : possibleCallers)
                 {
                     // check if the caller is identical or "shortly after" the function we're
@@ -478,7 +477,7 @@ static void onTerminate()
                 }
             }
         }
-#endif
+#endif // OOOPSI_MINGW
 
         // fallback...
         char reason[256];
@@ -510,7 +509,7 @@ HandlerSetup::HandlerSetup() noexcept
         std::set_terminate(onTerminate);
     }
 
-#ifdef _WIN32
+#ifdef OOOPSI_WINDOWS
     {
         // catch Windows-exceptions
         SetUnhandledExceptionFilter(onWindowsException);
@@ -523,7 +522,7 @@ HandlerSetup::HandlerSetup() noexcept
         // (called for deleted virtual functions as well, MSVC doesn't seem to distinguish them)
         _set_purecall_handler(onPureCall);
     }
-#else
+#else  // !OOOPSI_WINDOWS
     // error handler
     auto err = [](const char* what, int param) {
         char messageBuffer[256];
@@ -561,7 +560,7 @@ HandlerSetup::HandlerSetup() noexcept
             err("sigaction", sig);
         }
     }
-#endif
+#endif // OOOPSI_WINDOWS
 }
 
 // skipping unregistering - not worth the hassle
