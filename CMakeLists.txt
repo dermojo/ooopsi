@@ -17,6 +17,7 @@ add_library(ooopsi SHARED
         src/itanium_abi.cpp
         src/stacktrace.cpp
     )
+target_compile_options(ooopsi PRIVATE -DOOOPSI_BUILDING_SHARED_LIB)
 
 # Every library has unit tests, of course
 add_executable(tests
@@ -47,7 +48,7 @@ target_include_directories(example PRIVATE include)
 target_link_libraries(tests ${GTEST_LIBRARY} ${GTEST_MAIN_LIBRARY})
 # and of course against this library
 target_link_libraries(tests ooopsi)
-#target_link_libraries(example ooopsi)
+target_link_libraries(example ooopsi)
 
 # add libunwind for all *NIX systems
 if (UNIX)
@@ -68,6 +69,10 @@ set_property(TARGET example PROPERTY CXX_STANDARD_REQUIRED ON)
 string(TOLOWER "${CMAKE_BUILD_TOOL}" MY_BUILDTOOL)
 if(MY_BUILDTOOL MATCHES "(msdev|devenv|nmake|msbuild)")
     target_compile_options(tests PUBLIC /W4 /WX)
+    # Prevent deprecation errors for std::tr1 in googletest
+    target_compile_options(tests PUBLIC /D_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING)
+    # Disable deprecation warnings - we need the same C functions on all platforms
+    target_compile_options(ooopsi PRIVATE /D_CRT_SECURE_NO_WARNINGS)
 else()
     target_compile_options(tests PUBLIC -Wall -Weffc++ -Werror)
     target_link_libraries(tests pthread)
@@ -102,6 +107,7 @@ endif()
 list(APPEND CLANG_TIDY_ARGS
     -p .
     ${CMAKE_SOURCE_DIR}/test/example.cpp
+    ${CMAKE_SOURCE_DIR}/src/*.cpp
 )
 
 add_custom_target(

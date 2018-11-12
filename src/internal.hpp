@@ -10,8 +10,14 @@
 #include <cstdint>
 #include <cstring>
 
-// TODO: make hidden
+// printf compatibility options
+#ifdef _MSC_VER
+#define OOOPSI_FMT_I64 "ll"
+#else
+#define OOOPSI_FMT_I64 "l"
+#endif
 
+// TODO: make hidden
 namespace ooopsi
 {
 
@@ -54,7 +60,7 @@ void formatReason(char (&buffer)[N], const char* what, const char* detail = null
     if (addr)
     {
         size_t len = strlen(buffer);
-        snprintf(buffer + len, N - len, " @ 0x%lx", *addr);
+        snprintf(buffer + len, N - len, " @ 0x%" OOOPSI_FMT_I64 "x", *addr);
     }
 }
 

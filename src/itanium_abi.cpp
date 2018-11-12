@@ -12,11 +12,9 @@
 
 #include "internal.hpp"
 
-#include <cxxabi.h>
-
-// For Windows, see 'handlers.cpp' - these are covered by the onTerminate() function.
-// TODO: test with MSVC
+// For Windows, see 'handlers.cpp' - these are covered by the onTerminate(//onPureCall() functions.
 #ifndef _WIN32
+#include <cxxabi.h>
 
 /*
  * Replace standard library functions that log to stderr with our variants - at least on Linux.

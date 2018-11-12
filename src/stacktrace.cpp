@@ -15,14 +15,20 @@
 #endif
 #include <windows.h>
 // order matters..
+#pragma warning(push)
+#pragma warning(disable : 4091)
 #include <dbghelp.h>
+#pragma warning(pop)
 #else
 #include <libunwind.h>
 #endif
 
 // for compilers that support it...
+#ifndef _MSC_VER
 #include <cxxabi.h>
+#endif
 
+#include <mutex>
 #include <tuple> // for std::ignore
 
 #include <cstdint>
@@ -33,6 +39,35 @@
 namespace ooopsi
 {
 
+#ifdef _WIN32
+#if defined(__GNUC__) && !defined(_GLIBCXX_HAS_GTHREADS)
+// MinGW without thread support: create a small wrapper as a workaround
+class DbgHelpMutex
+{
+private:
+    CRITICAL_SECTION m_cs;
+
+public:
+    DbgHelpMutex() { InitializeCriticalSection(&m_cs); }
+    ~DbgHelpMutex() { DeleteCriticalSection(&m_cs); }
+
+    void lock() { EnterCriticalSection(&m_cs); }
+    void unlock() { LeaveCriticalSection(&m_cs); }
+};
+#else
+using DbgHelpMutex = std::recursive_mutex;
+#endif
+/**
+ * Mutex that guards access to all DbgHelp functions:
+ *
+ *  All DbgHelp functions, such as this one, are single threaded. Therefore, calls from more than
+ *  one thread to this function will likely result in unexpected behavior or memory corruption.
+ *  To avoid this, you must synchronize all concurrent calls from more than one thread to this
+ *  function.
+ */
+static DbgHelpMutex s_dbgHelpMutex;
+#endif
+
 /// buffer for __cxa_demangle() which is allocated via malloc() - unfortunately, this is required...
 static char* s_demangleBuffer = nullptr;
 /// allocated size of s_demangleBufferSize
@@ -41,21 +76,16 @@ static size_t s_demangleBufferSize = 0;
 size_t demangle(const char* name, char* buf, const size_t bufSize, const bool inSignalHandler)
 {
     // shall never happen, but just in case...
-    if (!name)
+    if (name == nullptr)
     {
         name = "<null>";
     }
-    if (!buf)
+    if (buf == nullptr)
     {
         return 0;
     }
 
-#ifndef _CXXABI_H
-
-    // not supported (yet)
-    strncpy(buf, name, bufSize);
-
-#else
+#ifdef _CXXABI_H
 
     int status = 0;
     char* demangledName = nullptr;
@@ -76,9 +106,9 @@ size_t demangle(const char* name, char* buf, const size_t bufSize, const bool in
              * anyway and we don't want to mess with a failing free().
              */
             constexpr size_t initSize = 256;
-            s_demangleBuffer = static_cast<char*>(malloc(initSize));
+            s_demangleBuffer = static_cast<char*>(malloc(initSize)); // NOLINT (malloc is required)
             // if this fails, ignore and let __cxa_demangle() handle the problem
-            if (s_demangleBuffer)
+            if (s_demangleBuffer != nullptr)
             {
                 s_demangleBufferSize = initSize;
             }
@@ -87,7 +117,7 @@ size_t demangle(const char* name, char* buf, const size_t bufSize, const bool in
         // call GCC's demangler - will realloc() the buffer if needed
         demangledName = abi::__cxa_demangle(name, s_demangleBuffer, &s_demangleBufferSize, &status);
     }
-    if (demangledName && status == 0)
+    if (demangledName != nullptr && status == 0)
     {
         // copy the demangled name
         strncpy(buf, demangledName, bufSize);
@@ -99,29 +129,46 @@ size_t demangle(const char* name, char* buf, const size_t bufSize, const bool in
     }
 
     // if the buffer was reallocated, update the pointer
-    if (demangledName)
+    if (demangledName != nullptr)
     {
         s_demangleBuffer = demangledName;
     }
+#elif defined(_MSC_VER)
+
+    {
+        const std::lock_guard<DbgHelpMutex> lock(s_dbgHelpMutex);
+        if (UnDecorateSymbolName(name, buf, static_cast<DWORD>(bufSize), UNDNAME_COMPLETE) == 0)
+        {
+            strncpy(buf, name, bufSize);
+        }
+    }
+
+#else
+
+    // not supported (yet)
+    strncpy(buf, name, bufSize);
+
 #endif // !_CXXABI_H
 
     return strlen(buf);
 }
 
-static void logFrame(LogFunc logFunc, const bool inSignalHandler, unsigned long num,
-                     uintptr_t address, const char* sym, uintptr_t offset,
-                     const uintptr_t* faultAddr)
+static void logFrame(LogFunc logFunc, const bool inSignalHandler, uint64_t num, uintptr_t address,
+                     const char* sym, uintptr_t offset, const uintptr_t* faultAddr)
 {
     char messageBuffer[512];
     const char* prefix = "  ";
-    if (faultAddr && *faultAddr == address)
+    if (faultAddr != nullptr && *faultAddr == address)
+    {
         prefix = "=>";
-    snprintf(messageBuffer, sizeof(messageBuffer), "%s#%-2lu  %016lx", prefix, num, address);
+    }
+    snprintf(messageBuffer, sizeof(messageBuffer),
+             "%s#%-2" OOOPSI_FMT_I64 "u  %016" OOOPSI_FMT_I64 "x", prefix, num, address);
 
-    if (sym)
+    if (sym != nullptr)
     {
         // append the demangled name + offset
-        strncat(messageBuffer, " in ", sizeof(messageBuffer));
+        strncat(messageBuffer, " in ", sizeof(messageBuffer) - strlen(messageBuffer) - 1);
         size_t bufLen = strlen(messageBuffer);
         if (bufLen < sizeof(messageBuffer))
         {
@@ -130,7 +177,8 @@ static void logFrame(LogFunc logFunc, const bool inSignalHandler, unsigned long 
         }
         if (bufLen < sizeof(messageBuffer))
         {
-            snprintf(messageBuffer + bufLen, sizeof(messageBuffer) - bufLen, "+0x%lx", offset);
+            snprintf(messageBuffer + bufLen, sizeof(messageBuffer) - bufLen,
+                     "+0x%" OOOPSI_FMT_I64 "x", offset);
         }
     }
     // else: no symbol name, keep the address
@@ -142,7 +190,7 @@ static void logFrame(LogFunc logFunc, const bool inSignalHandler, unsigned long 
 void printStackTrace(LogFunc logFunc, const bool inSignalHandler,
                      const uintptr_t* faultAddr) noexcept
 {
-    if (!logFunc)
+    if (logFunc == nullptr)
     {
         logFunc = getAbortLogFunc();
     }
@@ -151,43 +199,44 @@ void printStackTrace(LogFunc logFunc, const bool inSignalHandler,
 
 // OS-specific back trace
 #ifdef _WIN32
-    // TODO: why undecorated? test with SYMOPT_DEBUG
-    SymSetOptions(/*SYMOPT_UNDNAME |*/ SYMOPT_DEFERRED_LOADS);
-
-    HANDLE thisProc = GetCurrentProcess();
-
-    const BOOL symInitOk = SymInitialize(thisProc, NULL, TRUE);
-    void* stackFrames[s_MAX_STACK_FRAMES];
-    WORD numberOfFrames = RtlCaptureStackBackTrace(0, s_MAX_STACK_FRAMES, stackFrames, NULL);
-
-    char symBuffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
-    PSYMBOL_INFO pSymbol = (PSYMBOL_INFO)symBuffer;
-
-    for (WORD i = 0; i < numberOfFrames; ++i)
     {
-        const DWORD64 address = (DWORD64)stackFrames[i];
+        const std::lock_guard<DbgHelpMutex> lock(s_dbgHelpMutex);
+        // note: we're undecorating the name ourselves - gives much more infos!
+        SymSetOptions(/*SYMOPT_UNDNAME |*/ SYMOPT_DEFERRED_LOADS);
 
-        DWORD64 dwDisplacement = 0;
-        const char* symName = nullptr;
+        HANDLE thisProc = GetCurrentProcess();
 
-        if (symInitOk)
+        const BOOL symInitOk = SymInitialize(thisProc, NULL, TRUE);
+        void* stackFrames[s_MAX_STACK_FRAMES];
+        WORD numberOfFrames = RtlCaptureStackBackTrace(0, s_MAX_STACK_FRAMES, stackFrames, NULL);
+
+        char symBuffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
+        PSYMBOL_INFO pSymbol = (PSYMBOL_INFO)symBuffer;
+
+        for (WORD i = 0; i < numberOfFrames; ++i)
         {
-            memset(symBuffer, 0, sizeof(symBuffer));
-            pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
-            pSymbol->MaxNameLen = MAX_SYM_NAME;
+            const DWORD64 address = (DWORD64)stackFrames[i];
 
-            if (SymFromAddr(thisProc, address, &dwDisplacement, pSymbol))
+            DWORD64 dwDisplacement = 0;
+            const char* symName = nullptr;
+
+            if (symInitOk)
             {
-                symName = pSymbol->Name;
+                memset(symBuffer, 0, sizeof(symBuffer));
+                pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+                pSymbol->MaxNameLen = MAX_SYM_NAME;
+
+                if (SymFromAddr(thisProc, address, &dwDisplacement, pSymbol))
+                {
+                    symName = pSymbol->Name;
+                }
             }
-            else
-                printf("SymFromAddr() failed,last error = %lu\n", GetLastError());
+
+            logFrame(logFunc, inSignalHandler, i, address, symName, dwDisplacement, faultAddr);
         }
 
-        logFrame(logFunc, inSignalHandler, i, address, symName, dwDisplacement, faultAddr);
+        SymCleanup(thisProc);
     }
-
-    SymCleanup(thisProc);
 
 #else
     unw_cursor_t cursor;
@@ -202,7 +251,9 @@ void printStackTrace(LogFunc logFunc, const bool inSignalHandler,
         unw_word_t offset, pc;
         unw_get_reg(&cursor, UNW_REG_IP, &pc);
         if (pc == 0)
+        {
             break;
+        }
 
         if (i >= s_MAX_STACK_FRAMES)
         {

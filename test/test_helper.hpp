@@ -26,8 +26,10 @@
 // We need to disable optimizations for some functions, or else they won't crash... ;-)
 #ifdef __clang__
 #define DO_NOT_OPTIMIZE [[clang::optnone]]
-#else
+#elif defined(__GNUC__)
 #define DO_NOT_OPTIMIZE [[gnu::optimize("0")]]
+#else
+#define DO_NOT_OPTIMIZE
 #endif
 
 static void failStackOverflow()
@@ -139,12 +141,17 @@ DO_NOT_OPTIMIZE static int failFloatingPointIntDiv()
 }
 
 // yes, the following code is intentionally bad :)
+#ifdef _MSC_VER
+#pragma warning(disable: 4297)
+#else
 #pragma GCC diagnostic push
 #ifdef __clang__
 #pragma GCC diagnostic ignored "-Wexceptions"
 #else
 #pragma GCC diagnostic ignored "-Wterminate"
 #endif
+#endif
+
 static void failThrowStd() noexcept
 {
     throw std::runtime_error("whoopsi!");
@@ -161,7 +168,9 @@ static void failThrowInt() noexcept
 {
     throw 42;
 }
+#ifdef __GNUC__
 #pragma GCC diagnostic pop
+#endif
 
 class FooBase;
 static void doFoo(FooBase*);

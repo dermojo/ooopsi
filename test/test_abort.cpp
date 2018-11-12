@@ -107,7 +107,7 @@ TEST(Abort, StackTrace)
     // simple comparison (this test's main intend is to have the sanitizers or valgrind check the
     // print function without crashing the current process)
 
-    ASSERT_GE(s_stackTraceNumLines, 2);
+    ASSERT_GE(s_stackTraceNumLines, 2u);
     ASSERT_TRUE(s_stackTraceEndsWithNULL);
 }
 
@@ -171,12 +171,15 @@ TEST(Abort, SegmentationFaultDeath)
     }
     else
     {
+#ifdef _WIN32
+        ASSERT_DEATH(failStackOverflow(),
+                     "!!! TERMINATING DUE TO SEGMENTATION FAULT \\(stack overflow\\)");
+#else
         ASSERT_DEATH(failStackOverflow(),
                      "!!! TERMINATING DUE TO SEGMENTATION FAULT \\(stack overflow\\)"
-#ifndef _WIN32
                      " @ 0x[0-9a-f]+" BACKTRACE_TRUNCATED_REGEX
-#endif
                      );
+#endif
     }
 
 #ifndef _WIN32

@@ -30,7 +30,7 @@ namespace ooopsi
 #ifdef _WIN32 // Windows-specific handlers
 
 /**
- * Abort handler for Windows.
+ * Handler for Windows SEH exceptions.
  * @param[in] excInfo      information about the current exception
  */
 static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
@@ -41,8 +41,6 @@ static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
     const auto& excRec = *excInfo->ExceptionRecord;
     const uintptr_t* addr = nullptr;
 
-    // TODO: how to get the function name?
-    printf("winExc, addr=%llx\n", excRec.ExceptionAddress);
     switch (excRec.ExceptionCode)
     {
     case EXCEPTION_ACCESS_VIOLATION:
@@ -51,7 +49,7 @@ static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
         {
             // the first element contains a read/write flag
             // the second element contains the virtual address of the inaccessible data
-            addr = &excRec.ExceptionInformation[1];
+            addr = reinterpret_cast<const uintptr_t*>(&excRec.ExceptionInformation[1]);
         }
         break;
     case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
@@ -101,9 +99,9 @@ static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
             // the first element contains a read/write flag
             // the second element contains the virtual address of the inaccessible data
             // the third element contains the underlying NTSTATUS code that caused the exception
-            addr = &excRec.ExceptionInformation[1];
+            addr = reinterpret_cast<const uintptr_t*>(&excRec.ExceptionInformation[1]);
             uint64_t status = excRec.ExceptionInformation[2];
-            snprintf(detailBuf, sizeof(detailBuf), "NTSTATUS=%lu", status);
+            snprintf(detailBuf, sizeof(detailBuf), "NTSTATUS=%llu", status);
             detail = detailBuf;
         }
         break;
@@ -155,14 +153,37 @@ static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
  * Signal handler for Windows.
  * @param[in] sig    the signal number (ignored)
  */
-static void onAbort(int sig)
+static void signalHandler(int sig)
 {
-    // ignored - only SIGABRT expected
-    std::ignore = sig;
-
     char reason[256];
-    formatReason(reason, "std::abort()", nullptr, nullptr);
+    char buf[32];
+    const char* what = nullptr;
+
+    switch (sig)
+    {
+    case SIGABRT:
+        what = "std::abort()";
+        break;
+    case SIGSEGV:
+        what = "SEGMENTATION FAULT";
+        break;
+    default:
+        snprintf(buf, sizeof(buf), "SIGNAL %d", sig);
+        what = buf;
+        break;
+    }
+    formatReason(reason, what, nullptr, nullptr);
     abort(reason, true, true);
+}
+
+/**
+ * Handles pure virtual function calls on Windows.
+ */
+static void onPureCall()
+{
+    char reason[128];
+    ooopsi::formatReason(reason, "PURE/DELETED VIRTUAL FUNCTION CALL");
+    ooopsi::abort(reason);
 }
 
 #else  // !_WIN32
@@ -185,11 +206,11 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
 
     // determine were we got called from
     const uintptr_t* faultAddr = nullptr;
-    auto* context = (const ucontext_t*)ctx;
-    if (context)
+    auto* context = static_cast<const ucontext_t*>(ctx);
+    if (context != nullptr)
     {
         static_assert(sizeof(greg_t) == sizeof(uintptr_t), "something is odd here...");
-        faultAddr = (const uintptr_t*)&context->uc_mcontext.gregs[REG_RIP];
+        faultAddr = reinterpret_cast<const uintptr_t*>(&context->uc_mcontext.gregs[REG_RIP]);
     }
 
     switch (sig)
@@ -207,16 +228,18 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
         case SEGV_MAPERR:
             detail = "address not mapped to object";
             // may be a stack overflow...
-            if (context)
+            if (context != nullptr)
             {
                 // Let's try to distinguish the usual "segmentation fault" from a
                 // "stack overflow": Check if the address causing the fault is "slightly"
                 // past the end of the stack.
-                auto stackPtr = (uintptr_t)context->uc_mcontext.gregs[REG_RSP];
-                auto stackAddr = (uintptr_t)info->si_addr;
+                auto stackPtr = static_cast<uintptr_t>(context->uc_mcontext.gregs[REG_RSP]);
+                auto stackAddr = reinterpret_cast<uintptr_t>(info->si_addr);
                 constexpr auto rangeLimit = 1024;
                 if (stackAddr < stackPtr && stackPtr - stackAddr < rangeLimit)
+                {
                     detail = "stack overflow";
+                }
             }
             break;
         case SEGV_ACCERR:
@@ -351,6 +374,10 @@ static void onTerminate()
     constexpr bool stackTrace = true;
     constexpr bool inSignalHandler = false;
 
+    /*
+     * Note: This currently doesn't work with Visual Studio, see
+     * https://developercommunity.visualstudio.com/content/problem/135332/stdcurrent-exception-returns-null-in-a-stdterminat.html
+     */
     auto currentException = std::current_exception();
     if (currentException)
     {
@@ -382,8 +409,10 @@ static void onTerminate()
         // handle strings (should not be used, but who knows...)
         catch (const char* err)
         {
-            if (!err)
+            if (err == nullptr)
+            {
                 err = "<null>";
+            }
 
             // indicate the exception's type
             snprintf(detail, sizeof(detail), "exception (const char*): \"%s\"", err);
@@ -461,17 +490,20 @@ static void onTerminate()
 static bool s_handlersRegistered = false;
 
 // Register signal and std::terminate handlers
-HandlerSetup::HandlerSetup()
+HandlerSetup::HandlerSetup() noexcept
 {
     // allow to disable the handlers, e.g. for debugging
     const char* opt = getenv("OOOPSI_DISABLE_HANDLERS"); // flawfinder: ignore
-    if (opt && strcmp(opt, "1") == 0)
+    if (opt != nullptr && strcmp(opt, "1") == 0)
+    {
         return;
+    }
 
     if (s_handlersRegistered)
+    {
         return;
-    else
-        s_handlersRegistered = true;
+    }
+    s_handlersRegistered = true;
 
     {
         // catch std::terminate
@@ -483,8 +515,13 @@ HandlerSetup::HandlerSetup()
         // catch Windows-exceptions
         SetUnhandledExceptionFilter(onWindowsException);
         // catch std::abort
-        signal(SIGABRT, onAbort);
+        signal(SIGABRT, signalHandler);
         // note: don't catch SIGSEGV - the exception filter will be called, which has more infos
+        signal(SIGSEGV, signalHandler);
+
+        // install a handler for pure virtual function calls
+        // (called for deleted virtual functions as well, MSVC doesn't seem to distinguish them)
+        _set_purecall_handler(onPureCall);
     }
 #else
     // error handler
@@ -504,29 +541,31 @@ HandlerSetup::HandlerSetup()
         altStack.ss_size = s_ALT_STACK.size();
         altStack.ss_sp = s_ALT_STACK.data();
         if (sigaltstack(&altStack, nullptr) != 0)
+        {
             err("sigaltstack", s_ALT_STACK_SIZE);
+        }
     }
 
     // catch fatal signals
     for (int sig : { SIGABRT, SIGSEGV, SIGBUS, SIGILL, SIGFPE })
     {
         // prepare the signal structure
-        struct sigaction act;
+        struct sigaction act; // NOLINT (initialization below)
         memset(&act, 0, sizeof(act));
         sigemptyset(&act.sa_mask);
-        act.sa_flags = SA_ONSTACK | SA_SIGINFO;
+        act.sa_flags = SA_ONSTACK | SA_SIGINFO; // NOLINT (sorry, that's C ...)
         act.sa_sigaction = signalHandler;
 
         if (sigaction(sig, &act, nullptr) != 0)
+        {
             err("sigaction", sig);
+        }
     }
 #endif
 }
 
-HandlerSetup::~HandlerSetup()
-{
-    // skipping unregistering - not worth the hassle
-}
+// skipping unregistering - not worth the hassle
+HandlerSetup::~HandlerSetup() = default;
 
 /// static instance for RAII-style setup
 /// (not working when linking statically though...)
