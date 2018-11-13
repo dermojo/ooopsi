@@ -9,6 +9,7 @@
 #include "ooopsi.hpp"
 
 #include <array>
+#include <cinttypes>
 #include <cstdint>
 #include <cstring>
 

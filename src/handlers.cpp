@@ -99,7 +99,7 @@ static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
             // the third element contains the underlying NTSTATUS code that caused the exception
             addr = reinterpret_cast<const pointer_t*>(&excRec.ExceptionInformation[1]);
             uint64_t status = excRec.ExceptionInformation[2];
-            snprintf(detailBuf, sizeof(detailBuf), "NTSTATUS=%llu", status);
+            snprintf(detailBuf, sizeof(detailBuf), "NTSTATUS=%" PRIu64, status);
             detail = detailBuf;
         }
         break;
