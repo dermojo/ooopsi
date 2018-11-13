@@ -6,11 +6,7 @@
 #include "ooopsi.hpp"
 
 #include <cstdio>
-#ifdef _MSC_VER
-#include <stdlib.h> // _exit()
-#else
-#include <unistd.h>
-#endif
+#include <cstdlib>
 
 namespace ooopsi
 {
@@ -22,9 +18,8 @@ namespace ooopsi
 /// Default log function: prints to STDERR.
 static void logToStderr(const char* message) noexcept
 {
-    if (message)
+    if (message != nullptr)
     {
-        // fprintf(stderr, "%s\n", message);
         fputs(message, stderr);
         fputc('\n', stderr);
     }
@@ -39,7 +34,7 @@ static LogFunc s_logFunc = logToStderr;
 
 void setAbortLogFunc(LogFunc func) noexcept
 {
-    if (func)
+    if (func != nullptr)
     {
         s_logFunc = func;
     }
@@ -55,8 +50,9 @@ LogFunc getAbortLogFunc() noexcept
 }
 
 [[noreturn]] void abort(const char* reason, bool printTrace, bool inSignalHandler,
-                        const uintptr_t* faultAddr) {
-    if (reason)
+                        const pointer_t* faultAddr)
+{
+    if (reason != nullptr)
     {
         s_logFunc(reason);
     }
@@ -72,12 +68,12 @@ LogFunc getAbortLogFunc() noexcept
     }
 
     // the application will now end
-    _exit(OOOPSI_EXIT_CODE);
+    std::_Exit(OOOPSI_EXIT_CODE);
 }
 
-  [[noreturn]] void abort(const char* reason, bool printTrace, bool inSignalHandler)
+[[noreturn]] void abort(const char* reason, bool printStackTrace, bool inSignalHandler)
 {
-    abort(reason, printTrace, inSignalHandler, nullptr);
+    abort(reason, printStackTrace, inSignalHandler, nullptr);
 }
 
 } // namespace ooopsi

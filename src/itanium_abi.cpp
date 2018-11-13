@@ -12,13 +12,10 @@
 
 #include "internal.hpp"
 
-#ifndef _MSC_VER
+// For Windows, see 'handlers.cpp' - these are covered by the onTerminate(//onPureCall() functions.
+#ifdef OOOPSI_LINUX
 #include <cxxabi.h>
 #endif // !_MSC_VER
-
-// For Windows, see 'handlers.cpp' - these are covered by the onTerminate() function.
-// TODO: test with MSVC
-#ifndef _WIN32
 
 /*
  * Replace standard library functions that log to stderr with our variants - at least on Linux.
@@ -43,4 +40,4 @@ void __cxxabiv1::__cxa_deleted_virtual()
     ooopsi::abort(reason);
 }
 
-#endif
+#endif // OOOPSI_LINUX
