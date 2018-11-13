@@ -94,7 +94,7 @@ static void onSignal(int)
 
 TEST(Abort, StackTrace)
 {
-// generate a stack trace
+    // generate a stack trace
 
 #ifdef SIGINT
     // --> for ThreadSanitizer, call it from a signal handler
@@ -157,6 +157,7 @@ TEST(Abort, CrashVirtualDeath)
                  makeBtRegex("!!! TERMINATING DUE TO DELETED VIRTUAL FUNCTION CALL"));
 }
 
+#ifndef _MSC_VER // failSegmentationFault()
 TEST(Abort, SegmentationFaultDeath)
 {
     // general fault
@@ -187,6 +188,7 @@ TEST(Abort, SegmentationFaultDeath)
     ASSERT_DEATH(failBusError(), makeBtRegex("!!! TERMINATING DUE TO BUS ERROR"));
 #endif // _WIN32
 }
+#endif
 
 TEST(Abort, FloatingPointDeath)
 {

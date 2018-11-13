@@ -2,6 +2,10 @@
 cmake_minimum_required(VERSION 3.2 FATAL_ERROR)
 project(ooopsi VERSION 0.1 LANGUAGES CXX)
 
+if(MSVC)
+    add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+endif()
+
 # Setup testing using GTEST
 enable_testing()
 find_package(GTest REQUIRED)

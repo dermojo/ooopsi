@@ -28,7 +28,9 @@
 #include <system_error>
 
 // We need to disable optimizations for some functions, or else they won't crash... ;-)
-#ifdef OOOPSI_CLANG
+#ifdef OOOPSI_MSVC
+#define DO_NOT_OPTIMIZE __pragma(optimize("", off))
+#elif defined(OOOPSI_CLANG)
 #define DO_NOT_OPTIMIZE [[clang::optnone]]
 #elif defined(OOOPSI_GCC)
 #define DO_NOT_OPTIMIZE [[gnu::optimize("0")]]
@@ -146,6 +148,7 @@ DO_NOT_OPTIMIZE static int failFloatingPointIntDiv()
 
 // yes, the following code is intentionally bad :)
 #ifdef OOOPSI_MSVC
+#pragma warning(push)
 #pragma warning(disable : 4297)
 #endif
 #ifdef OOOPSI_CLANG
@@ -173,6 +176,9 @@ static void failThrowInt() noexcept
 {
     throw 42;
 }
+#ifdef OOOPSI_MSVC
+#pragma warning(pop)
+#endif
 #ifdef OOOPSI_CLANG
 #pragma clang diagnostic pop
 #endif

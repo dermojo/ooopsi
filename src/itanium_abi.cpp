@@ -15,6 +15,7 @@
 // For Windows, see 'handlers.cpp' - these are covered by the onTerminate(//onPureCall() functions.
 #ifdef OOOPSI_LINUX
 #include <cxxabi.h>
+#endif // !_MSC_VER
 
 /*
  * Replace standard library functions that log to stderr with our variants - at least on Linux.
