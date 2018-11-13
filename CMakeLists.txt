@@ -17,6 +17,7 @@ add_library(ooopsi SHARED
         src/itanium_abi.cpp
         src/stacktrace.cpp
     )
+target_compile_options(ooopsi PRIVATE -DOOOPSI_BUILDING_SHARED_LIB)
 
 # Every library has unit tests, of course
 add_executable(tests
@@ -40,14 +41,14 @@ add_dependencies(runtest tests)
 # compiling the library, and will be added to consumers' build
 # paths.
 target_include_directories(ooopsi PUBLIC include)
-target_include_directories(tests PRIVATE include)
-target_include_directories(example PRIVATE include)
+target_include_directories(tests PRIVATE include src)
+target_include_directories(example PRIVATE include src)
 
 # Link test executable against gtest & gtest_main
 target_link_libraries(tests ${GTEST_LIBRARY} ${GTEST_MAIN_LIBRARY})
 # and of course against this library
 target_link_libraries(tests ooopsi)
-#target_link_libraries(example ooopsi)
+target_link_libraries(example ooopsi)
 
 # add libunwind for all *NIX systems
 if (UNIX)
@@ -68,6 +69,10 @@ set_property(TARGET example PROPERTY CXX_STANDARD_REQUIRED ON)
 string(TOLOWER "${CMAKE_BUILD_TOOL}" MY_BUILDTOOL)
 if(MY_BUILDTOOL MATCHES "(msdev|devenv|nmake|msbuild)")
     target_compile_options(tests PUBLIC /W4 /WX)
+    # Prevent deprecation errors for std::tr1 in googletest
+    target_compile_options(tests PUBLIC /D_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING)
+    # Disable deprecation warnings - we need the same C functions on all platforms
+    target_compile_options(ooopsi PRIVATE /D_CRT_SECURE_NO_WARNINGS)
 else()
     target_compile_options(tests PUBLIC -Wall -Weffc++ -Werror)
     target_link_libraries(tests pthread)
@@ -93,15 +98,16 @@ option(ENABLE_COVERAGE "Enable code coverage flags" OFF)
 
 
 # clang tidy support (using version 6.0 atm)
-# (since this is a header-only library, it's sufficient to check a single source that includes
-#  everything)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_USE_RESPONSE_FILE_FOR_INCLUDES OFF)
+
 if(NOT DEFINED CLANG_TIDY)
     set(CLANG_TIDY clang-tidy-6.0)
 endif()
 list(APPEND CLANG_TIDY_ARGS
     -p .
     ${CMAKE_SOURCE_DIR}/test/example.cpp
+    ${CMAKE_SOURCE_DIR}/src/*.cpp
 )
 
 add_custom_target(

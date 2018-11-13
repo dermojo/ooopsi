@@ -10,24 +10,38 @@
 
 #include <cstdint>
 
+#ifdef _MSC_VER
+#define OOOPSI_DLL_EXPORT __declspec(dllexport)
+#define OOOPSI_DLL_IMPORT __declspec(dllimport)
+#else
+#define OOOPSI_DLL_EXPORT __attribute__((visibility("default")))
+#define OOOPSI_DLL_IMPORT __attribute__((visibility("default")))
+#endif
+
+#ifdef OOOPSI_BUILDING_SHARED_LIB
+#define OOOPSI_EXPORT OOOPSI_DLL_EXPORT
+#else
+#define OOOPSI_EXPORT OOOPSI_DLL_IMPORT
+#endif
+
 namespace ooopsi
 {
-
-// TODO: DLL export / visibility
 
 /// Log functions can be registered trough this function pointer. Although it cannot be
 /// declared as 'noexcept', it needs to be to avoid side-effects.
 /// (see setAbortLogFunc() for details)
 typedef void (*LogFunc)(const char*);
 
+/// Pointer alias. Avoid uint64_t/uintptr_t because they are a PITA when using printf.
+using pointer_t = unsigned long long;
 
 /// Prints a stack trace using the given log function.
 /// The second argument indicates whether this function is called from a signal handler.
 /// In this case, the functionality is limited.
 /// The optional third argument is the address of the fault, used to highlight the according
 /// line in the backtrace (if found).
-void printStackTrace(LogFunc logFunc, bool inSignalHandler,
-                     const uintptr_t* faultAddr = nullptr) noexcept;
+OOOPSI_EXPORT void printStackTrace(LogFunc logFunc, bool inSignalHandler,
+                                   const pointer_t* faultAddr = nullptr) noexcept;
 
 
 /// Aborts the current process' execution, similar to std::abort, but logs a stack trace and the
@@ -39,8 +53,8 @@ void printStackTrace(LogFunc logFunc, bool inSignalHandler,
 /// @param reason               optional reason for the program termination
 /// @param printStackTrace      whether to print a stack trace (default: yes)
 /// @param inSignalHandler      must be set when called from a signal handler (default: false)
-[[noreturn]] void abort(const char* reason, bool printStackTrace = true,
-                        bool inSignalHandler = false);
+[[noreturn]] OOOPSI_EXPORT void abort(const char* reason, bool printStackTrace = true,
+                                      bool inSignalHandler = false);
 
 
 /// Sets the log function to use when terminating due to std::terminate, std::abort or some other
@@ -49,16 +63,16 @@ void printStackTrace(LogFunc logFunc, bool inSignalHandler,
 ///  - After the last line, it is called with a nullptr (to allow e.g. closing/flushing etc.).
 ///
 /// Passing a nullptr restores the default log function (which prints to STDERR).
-void setAbortLogFunc(LogFunc func) noexcept;
+OOOPSI_EXPORT void setAbortLogFunc(LogFunc func) noexcept;
 
 /// Returns the current log function pointer.
-LogFunc getAbortLogFunc() noexcept;
+OOOPSI_EXPORT LogFunc getAbortLogFunc() noexcept;
 
 /// Register signal and std::terminate handlers
-class HandlerSetup
+class OOOPSI_EXPORT HandlerSetup
 {
 public:
-    HandlerSetup();
+    HandlerSetup() noexcept;
     ~HandlerSetup();
 };
 

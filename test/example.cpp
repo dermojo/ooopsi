@@ -1,3 +1,11 @@
+#ifdef _WIN32
+// required to pull in the library
+#ifndef USE_OOOPSI
+#define USE_OOOPSI
+#endif
+#endif
+
+
 #ifdef USE_OOOPSI
 #include "ooopsi.hpp"
 #endif // USE_OOOPSI
@@ -7,6 +15,7 @@
 #include <functional>
 #include <iomanip>
 #include <iostream>
+#include <string>
 #include <vector>
 
 class Action
@@ -50,7 +59,9 @@ int main(int argc, char** argv)
     for (int i = 1; i < argc; ++i)
     {
         if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0)
+        {
             showHelp = true;
+        }
     }
     if (argc != 2 || showHelp)
     {

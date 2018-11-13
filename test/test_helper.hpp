@@ -7,10 +7,14 @@
 #ifndef TEST_HELPER_HPP_
 #define TEST_HELPER_HPP_
 
+// include OS defines
+#include "internal.hpp"
+
 // OS-specific headers for some bad stuff...
-#ifdef _WIN32
+#ifdef OOOPSI_WINDOWS
 #include <windows.h>
-#else
+#endif
+#ifdef OOOPSI_LINUX
 #include <sys/mman.h>
 #include <unistd.h>
 #endif
@@ -24,10 +28,12 @@
 #include <system_error>
 
 // We need to disable optimizations for some functions, or else they won't crash... ;-)
-#ifdef __clang__
+#ifdef OOOPSI_CLANG
 #define DO_NOT_OPTIMIZE [[clang::optnone]]
-#else
+#elif defined(OOOPSI_GCC)
 #define DO_NOT_OPTIMIZE [[gnu::optimize("0")]]
+#else
+#define DO_NOT_OPTIMIZE
 #endif
 
 static void failStackOverflow()
@@ -49,7 +55,7 @@ static void failSegmentationFault()
 }
 
 
-#ifndef _WIN32 // not possible on Windows (AFAIK)
+#ifndef OOOPSI_WINDOWS // not possible on Windows (AFAIK)
 static void runtimeError(const char* action, const char* file)
 {
     std::string err = action;
@@ -96,13 +102,13 @@ DO_NOT_OPTIMIZE static char failBusError()
 
     return c;
 }
-#endif // _WIN32
+#endif // OOOPSI_WINDOWS
 
 static void failIllegalInstruction()
 {
     // allocate an executable page
     constexpr size_t size = 1024;
-#ifdef _WIN32
+#ifdef OOOPSI_WINDOWS
     void* page = VirtualAlloc(0, size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 #else
     void* page =
@@ -116,7 +122,7 @@ static void failIllegalInstruction()
     func();
 
 // not reached
-#ifdef _WIN32
+#ifdef OOOPSI_WINDOWS
     VirtualFree(page, 0, MEM_RELEASE);
 #else
     munmap(page, size);
@@ -139,12 +145,18 @@ DO_NOT_OPTIMIZE static int failFloatingPointIntDiv()
 }
 
 // yes, the following code is intentionally bad :)
+#ifdef OOOPSI_MSVC
+#pragma warning(disable : 4297)
+#endif
+#ifdef OOOPSI_CLANG
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wexceptions"
+#endif
+#ifdef OOOPSI_GCC
 #pragma GCC diagnostic push
-#ifdef __clang__
-#pragma GCC diagnostic ignored "-Wexceptions"
-#else
 #pragma GCC diagnostic ignored "-Wterminate"
 #endif
+
 static void failThrowStd() noexcept
 {
     throw std::runtime_error("whoopsi!");
@@ -161,7 +173,12 @@ static void failThrowInt() noexcept
 {
     throw 42;
 }
+#ifdef OOOPSI_CLANG
+#pragma clang diagnostic pop
+#endif
+#ifdef OOOPSI_GCC
 #pragma GCC diagnostic pop
+#endif
 
 class FooBase;
 static void doFoo(FooBase*);
