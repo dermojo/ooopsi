@@ -20,7 +20,6 @@
 #include <libunwind.h>
 #endif
 
-#ifndef _MSC_VER
 // for compilers that support it...
 #ifndef OOOPSI_MSVC
 #include <cxxabi.h>
