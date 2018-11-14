@@ -35,7 +35,7 @@ int main(int argc, char** argv)
     // list of supported actions
     const std::vector<Action> actions = {
 #ifdef USE_OOOPSI
-        { "trace", "Print a stack trace", [] { ooopsi::printStackTrace(nullptr, false); } },
+        { "trace", "Print a stack trace", [] { ooopsi::printStackTrace(); } },
         { "abort", "Call ooopsi::abort()", [] { ooopsi::abort("ooops"); } },
 #endif // USE_OOOPSI
         { "stdabort", "Call std::abort()", [] { std::abort(); } },
@@ -46,9 +46,7 @@ int main(int argc, char** argv)
         { "throw-int", "Terminate due to an uncaught int", [] { failThrowInt(); } },
         { "pure-virt", "Call a pure virtual function", [] { failPureVirtual(); } },
         { "deleted-virt", "Call a deleted virtual function", [] { failDeletedVirtual(); } },
-#ifndef OOOPSI_MSVC
         { "segfault", "Cause a segmentation fault", [] { failSegmentationFault(); } },
-#endif
         { "stackoverflow", "Cause a stack overflow", [] { failStackOverflow(); } },
 #ifndef OOOPSI_WINDOWS // not possible on Windows (AFAIK)
         { "buserror", "Cause a BUS error", [] { failBusError(); } },

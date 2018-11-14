@@ -70,7 +70,7 @@ static char* s_demangleBuffer = nullptr;
 /// allocated size of s_demangleBufferSize
 static size_t s_demangleBufferSize = 0;
 
-size_t demangle(const char* name, char* buf, const size_t bufSize, const bool inSignalHandler)
+size_t demangle(const char* name, char* buf, const size_t bufSize)
 {
     // shall never happen, but just in case...
     if (name == nullptr)
@@ -87,33 +87,31 @@ size_t demangle(const char* name, char* buf, const size_t bufSize, const bool in
     int status = 0;
     char* demangledName = nullptr;
 
-    if (!inSignalHandler)
+    // actual demangling can only be done ion a signal-unsafe way (malloc() can't be avoided),
+    // so this isn't available for signal handlers...
+
+    if (s_demangleBuffer == nullptr)
     {
-        // actual demangling can only be done ion a signal-unsafe way (malloc() can't be avoided),
-        // so this isn't available for signal handlers...
-
-        if (s_demangleBuffer == nullptr)
+        /*
+         * Initial allocation of the demangling buffer.
+         * Unfortunately, __cxa_demangle() requires the use of malloc(). So lets try to allocate
+         * a single buffer which shall be large enough for all subsequent mangling requests.
+         *
+         * Note: This buffer is intentionally leaked because this process is about to terminate
+         * anyway and we don't want to mess with a failing free().
+         */
+        constexpr size_t initSize = 256;
+        s_demangleBuffer = static_cast<char*>(malloc(initSize)); // NOLINT (malloc is required)
+        // if this fails, ignore and let __cxa_demangle() handle the problem
+        if (s_demangleBuffer != nullptr)
         {
-            /*
-             * Initial allocation of the demangling buffer.
-             * Unfortunately, __cxa_demangle() requires the use of malloc(). So lets try to allocate
-             * a single buffer which shall be large enough for all subsequent mangling requests.
-             *
-             * Note: This buffer is intentionally leaked because this process is about to terminate
-             * anyway and we don't want to mess with a failing free().
-             */
-            constexpr size_t initSize = 256;
-            s_demangleBuffer = static_cast<char*>(malloc(initSize)); // NOLINT (malloc is required)
-            // if this fails, ignore and let __cxa_demangle() handle the problem
-            if (s_demangleBuffer != nullptr)
-            {
-                s_demangleBufferSize = initSize;
-            }
+            s_demangleBufferSize = initSize;
         }
-
-        // call GCC's demangler - will realloc() the buffer if needed
-        demangledName = abi::__cxa_demangle(name, s_demangleBuffer, &s_demangleBufferSize, &status);
     }
+
+    // call GCC's demangler - will realloc() the buffer if needed
+    demangledName = abi::__cxa_demangle(name, s_demangleBuffer, &s_demangleBufferSize, &status);
+
     if (demangledName != nullptr && status == 0)
     {
         // copy the demangled name
@@ -150,9 +148,8 @@ size_t demangle(const char* name, char* buf, const size_t bufSize, const bool in
     return strlen(buf);
 }
 
-static void logFrame(LogFunc logFunc, const bool inSignalHandler, unsigned int num,
-                     pointer_t address, const char* sym, pointer_t offset,
-                     const pointer_t* faultAddr)
+static void logFrame(const LogSettings settings, unsigned int num, pointer_t address,
+                     const char* sym, pointer_t offset, const pointer_t* faultAddr)
 {
     char messageBuffer[512];
     const char* prefix = "  ";
@@ -169,8 +166,16 @@ static void logFrame(LogFunc logFunc, const bool inSignalHandler, unsigned int n
         size_t bufLen = strlen(messageBuffer);
         if (bufLen < sizeof(messageBuffer))
         {
-            bufLen += demangle(sym, messageBuffer + bufLen, sizeof(messageBuffer) - bufLen,
-                               inSignalHandler);
+            if (settings.demangleNames)
+            {
+                bufLen += demangle(sym, messageBuffer + bufLen, sizeof(messageBuffer) - bufLen);
+            }
+            else
+            {
+                // copy the plain name
+                strncat(messageBuffer, sym, sizeof(messageBuffer) - bufLen - 1);
+                bufLen = strlen(messageBuffer);
+            }
         }
         if (bufLen < sizeof(messageBuffer))
         {
@@ -179,19 +184,18 @@ static void logFrame(LogFunc logFunc, const bool inSignalHandler, unsigned int n
     }
     // else: no symbol name, keep the address
 
-    logFunc(messageBuffer);
+    settings.logFunc(messageBuffer);
 }
 
 
-void printStackTrace(LogFunc logFunc, const bool inSignalHandler,
-                     const pointer_t* faultAddr) noexcept
+void printStackTrace(LogSettings settings, const pointer_t* faultAddr) noexcept
 {
-    if (logFunc == nullptr)
+    if (settings.logFunc == nullptr)
     {
-        logFunc = getAbortLogFunc();
+        settings.logFunc = getAbortLogFunc();
     }
 
-    logFunc("---------- BACKTRACE ----------");
+    settings.logFunc("---------- BACKTRACE ----------");
 
 // OS-specific back trace
 #ifdef OOOPSI_WINDOWS
@@ -228,7 +232,7 @@ void printStackTrace(LogFunc logFunc, const bool inSignalHandler,
                 }
             }
 
-            logFrame(logFunc, inSignalHandler, i, address, symName, dwDisplacement, faultAddr);
+            logFrame(settings, i, address, symName, dwDisplacement, faultAddr);
         }
 
         SymCleanup(thisProc);
@@ -257,7 +261,7 @@ void printStackTrace(LogFunc logFunc, const bool inSignalHandler,
             // we reached the maximum depth
             char messageBuffer[512];
             snprintf(messageBuffer, sizeof(messageBuffer), "  #%-2u ... (truncating)", i);
-            logFunc(messageBuffer);
+            settings.logFunc(messageBuffer);
             break;
         }
 
@@ -268,7 +272,7 @@ void printStackTrace(LogFunc logFunc, const bool inSignalHandler,
             symName = symBuffer;
         }
 
-        logFrame(logFunc, inSignalHandler, i, pc, symName, offset, faultAddr);
+        logFrame(settings, i, pc, symName, offset, faultAddr);
         i++;
     }
 
@@ -278,9 +282,9 @@ void printStackTrace(LogFunc logFunc, const bool inSignalHandler,
 
 #endif // OOOPSI_WINDOWS/LINUX
 
-    logFunc("-------------------------------");
+    settings.logFunc("-------------------------------");
     // END
-    logFunc(nullptr);
+    settings.logFunc(nullptr);
 }
 
 } // namespace ooopsi

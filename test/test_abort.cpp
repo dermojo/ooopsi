@@ -89,12 +89,14 @@ static void writeStackTrace(const char* line)
 
 static void onSignal(int)
 {
-    ooopsi::printStackTrace(writeStackTrace, true);
+    ooopsi::AbortSettings settings;
+    settings.logFunc = writeStackTrace;
+    ooopsi::printStackTrace(settings);
 }
 
 TEST(Abort, StackTrace)
 {
-    // generate a stack trace
+// generate a stack trace
 
 #ifdef SIGINT
     // --> for ThreadSanitizer, call it from a signal handler
@@ -117,9 +119,11 @@ TEST(Abort, AbortDeath)
     // fail with some random message
     // expect a backtrace by default
     ASSERT_DEATH(ooopsi::abort("ooops"), makeBtRegex("^ooops"));
-    ASSERT_DEATH(ooopsi::abort("ooops", true), makeBtRegex("^ooops"));
+    ASSERT_DEATH(ooopsi::abort("ooops"), makeBtRegex("^ooops"));
     // but not if disabled
-    ASSERT_DEATH(ooopsi::abort("ooops", false), "^ooops\n$");
+    ooopsi::AbortSettings settings;
+    settings.printStackTrace = false;
+    ASSERT_DEATH(ooopsi::abort("ooops", settings), "^ooops\n$");
 }
 
 TEST(Abort, StdAbortDeath)
@@ -129,6 +133,8 @@ TEST(Abort, StdAbortDeath)
 
 TEST(Abort, TerminateDeath)
 {
+    // TODO: This fails with MSVC because std::current_exception() isn't implemented.
+
     // fail with some random message
     ASSERT_DEATH(
       failThrowStd(),
@@ -152,12 +158,11 @@ TEST(Abort, CrashVirtualDeath)
     }
 
     ASSERT_DEATH(failPureVirtual(),
-                 makeBtRegex("!!! TERMINATING DUE TO PURE VIRTUAL FUNCTION CALL"));
+                 makeBtRegex("!!! TERMINATING DUE TO PURE.* VIRTUAL FUNCTION CALL"));
     ASSERT_DEATH(failDeletedVirtual(),
-                 makeBtRegex("!!! TERMINATING DUE TO DELETED VIRTUAL FUNCTION CALL"));
+                 makeBtRegex("!!! TERMINATING DUE TO .*DELETED VIRTUAL FUNCTION CALL"));
 }
 
-#ifndef _MSC_VER // failSegmentationFault()
 TEST(Abort, SegmentationFaultDeath)
 {
     // general fault
@@ -188,7 +193,6 @@ TEST(Abort, SegmentationFaultDeath)
     ASSERT_DEATH(failBusError(), makeBtRegex("!!! TERMINATING DUE TO BUS ERROR"));
 #endif // _WIN32
 }
-#endif
 
 TEST(Abort, FloatingPointDeath)
 {

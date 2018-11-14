@@ -49,31 +49,36 @@ LogFunc getAbortLogFunc() noexcept
     return s_logFunc;
 }
 
-[[noreturn]] void abort(const char* reason, bool printTrace, bool inSignalHandler,
-                        const pointer_t* faultAddr)
+[[noreturn]] void abort(const char* reason, AbortSettings settings, const pointer_t* faultAddr)
 {
-    if (reason != nullptr)
+    if (settings.logFunc == nullptr)
     {
-        s_logFunc(reason);
+        settings.logFunc = getAbortLogFunc();
     }
 
-    if (printTrace)
+    if (reason != nullptr)
     {
-        printStackTrace(s_logFunc, inSignalHandler, faultAddr);
+        settings.logFunc(reason);
+    }
+
+    if (settings.printStackTrace)
+    {
+        printStackTrace(settings, faultAddr); // NOLINT (slicing is fine here)
     }
     else
     {
         // allow logging to stop
-        s_logFunc(nullptr);
+        settings.logFunc(nullptr);
     }
 
     // the application will now end
     std::_Exit(OOOPSI_EXIT_CODE);
 }
 
-[[noreturn]] void abort(const char* reason, bool printStackTrace, bool inSignalHandler)
+[[noreturn]] void abort(const char* reason, AbortSettings settings)
 {
-    abort(reason, printStackTrace, inSignalHandler, nullptr);
+    // note: 'settings' is a POD, so std::move() has no effect here
+    abort(reason, settings, nullptr);
 }
 
 } // namespace ooopsi

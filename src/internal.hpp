@@ -12,6 +12,7 @@
 #include <cinttypes>
 #include <cstdint>
 #include <cstring>
+#include <tuple> // for std::ignore
 
 
 // TODO: make hidden
@@ -62,13 +63,24 @@ static constexpr size_t s_MAX_STACK_FRAMES = 64;
 /// @param[in]  bufSize           size of the output buffer
 /// @param[in]  inSignalHandler   whether this function is called from a signal handler
 /// @return number of bytes written
-size_t demangle(const char* name, char* buf, size_t bufSize, bool inSignalHandler);
+size_t demangle(const char* name, char* buf, size_t bufSize);
 
 
 /// Extension of the public abort() function with an optional address that caused the fault.
 /// The address will be used to highlight the according backtrace line.
-[[noreturn]] void abort(const char* reason, bool printTrace, bool inSignalHandler,
-                        const pointer_t* faultAddr);
+[[noreturn]] void abort(const char* reason, AbortSettings settings, const pointer_t* faultAddr);
+
+/// Creates AbortSettings from the current context.
+inline AbortSettings makeSettings(bool inSignalHandler = false) noexcept
+{
+    AbortSettings settings;
+#ifdef OOOPSI_LINUX
+    settings.demangleNames = !inSignalHandler;
+#else
+    std::ignore = inSignalHandler;
+#endif
+    return settings;
+}
 
 /// define the error string prefix as a macro to allow composing compile-time messages
 #define REASON_PREFIX "!!! TERMINATING DUE TO "

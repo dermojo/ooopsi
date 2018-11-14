@@ -27,22 +27,53 @@ namespace ooopsi
 
 #ifdef OOOPSI_WINDOWS // Windows-specific handlers
 
+/// Windows SEH code for a C++ exception (0xE0000000 | ascii("msc"))
+static constexpr DWORD s_SEH_CPP_EXCEPTION = 0xE06D7363;
+/// The g++ runtime has a different code...
+static constexpr DWORD s_MINGW_CPP_EXCEPTION = 0x20474343;
+
 /**
  * Handler for Windows SEH exceptions.
  * @param[in] excInfo      information about the current exception
  */
 static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
 {
-    const char* what = "???";
-    const char* detail = nullptr;
+    const char* exceptionType = "???";
+    const char* details = nullptr;
     char detailBuf[64];
     const auto& excRec = *excInfo->ExceptionRecord;
     const pointer_t* addr = nullptr;
 
     switch (excRec.ExceptionCode)
     {
+    default:
+        // Anything not listed here is unknown or "not a problem", so skip any further action
+        return EXCEPTION_CONTINUE_SEARCH;
+
+    case s_SEH_CPP_EXCEPTION:
+    case s_MINGW_CPP_EXCEPTION:
+#if 0
+        // TODO: analyze if we can get infos that std::current_exception should have...
+        /*
+         * Parameter 0 is some internal value not important to the discussion.
+         * Parameter 1 is a pointer to the object being thrown (sort of).
+         * Parameter 2 is a pointer to information that describes the object being thrown.
+         * Parameter 3 is the HINSTANCE of the DLL that raised the exception.
+         *             (Present only on 64-bit Windows.)
+         */
+
+        printf("C++ exception:\n");
+        for (DWORD i = 0; i < excRec.NumberParameters; ++i)
+        {
+            printf("param[%lu]: %llx\n", i, excRec.ExceptionInformation[i]);
+        }
+#endif
+
+        // let onTerminate() handle it
+        return EXCEPTION_CONTINUE_SEARCH;
+
     case EXCEPTION_ACCESS_VIOLATION:
-        what = "SEGMENTATION FAULT";
+        exceptionType = "SEGMENTATION FAULT";
         if (excRec.NumberParameters >= 2)
         {
             // the first element contains a read/write flag
@@ -51,47 +82,47 @@ static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
         }
         break;
     case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
-        what = "EXCEPTION_ARRAY_BOUNDS_EXCEEDED";
+        exceptionType = "EXCEPTION_ARRAY_BOUNDS_EXCEEDED";
         break;
     case EXCEPTION_BREAKPOINT:
-        what = "EXCEPTION_BREAKPOINT";
+        exceptionType = "EXCEPTION_BREAKPOINT";
         break;
     case EXCEPTION_DATATYPE_MISALIGNMENT:
-        what = "EXCEPTION_DATATYPE_MISALIGNMENT";
+        exceptionType = "EXCEPTION_DATATYPE_MISALIGNMENT";
         break;
     case EXCEPTION_FLT_DENORMAL_OPERAND:
-        what = "FLOATING POINT ERROR";
-        detail = "floating-point denormal operand";
+        exceptionType = "FLOATING POINT ERROR";
+        details = "floating-point denormal operand";
         break;
     case EXCEPTION_FLT_DIVIDE_BY_ZERO:
-        what = "FLOATING POINT ERROR";
-        detail = "floating-point divide by zero";
+        exceptionType = "FLOATING POINT ERROR";
+        details = "floating-point divide by zero";
         break;
     case EXCEPTION_FLT_INEXACT_RESULT:
-        what = "FLOATING POINT ERROR";
-        detail = " (floating-point inexact result)";
+        exceptionType = "FLOATING POINT ERROR";
+        details = " (floating-point inexact result)";
         break;
     case EXCEPTION_FLT_INVALID_OPERATION:
-        what = "FLOATING POINT ERROR";
-        detail = "floating-point invalid operation";
+        exceptionType = "FLOATING POINT ERROR";
+        details = "floating-point invalid operation";
         break;
     case EXCEPTION_FLT_OVERFLOW:
-        what = "FLOATING POINT ERROR";
-        detail = "floating-point overflow";
+        exceptionType = "FLOATING POINT ERROR";
+        details = "floating-point overflow";
         break;
     case EXCEPTION_FLT_STACK_CHECK:
-        what = "FLOATING POINT ERROR";
-        detail = "floating-point stack over/underflow";
+        exceptionType = "FLOATING POINT ERROR";
+        details = "floating-point stack over/underflow";
         break;
     case EXCEPTION_FLT_UNDERFLOW:
-        what = "FLOATING POINT ERROR";
-        detail = "floating-point underflow";
+        exceptionType = "FLOATING POINT ERROR";
+        details = "floating-point underflow";
         break;
     case EXCEPTION_ILLEGAL_INSTRUCTION:
-        what = "ILLEGAL INSTRUCTION";
+        exceptionType = "ILLEGAL INSTRUCTION";
         break;
     case EXCEPTION_IN_PAGE_ERROR:
-        what = "PAGE ERROR";
+        exceptionType = "PAGE ERROR";
         if (excRec.NumberParameters >= 3)
         {
             // the first element contains a read/write flag
@@ -100,36 +131,31 @@ static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
             addr = reinterpret_cast<const pointer_t*>(&excRec.ExceptionInformation[1]);
             uint64_t status = excRec.ExceptionInformation[2];
             snprintf(detailBuf, sizeof(detailBuf), "NTSTATUS=%" PRIu64, status);
-            detail = detailBuf;
+            details = detailBuf;
         }
         break;
     case EXCEPTION_INT_DIVIDE_BY_ZERO:
-        what = "FLOATING POINT ERROR";
-        detail = "integer divide by zero";
+        exceptionType = "FLOATING POINT ERROR";
+        details = "integer divide by zero";
         break;
     case EXCEPTION_INT_OVERFLOW:
-        what = "FLOATING POINT ERROR";
-        detail = "integer overflow";
+        exceptionType = "FLOATING POINT ERROR";
+        details = "integer overflow";
         break;
     case EXCEPTION_INVALID_DISPOSITION:
-        what = "INVALID EXCEPTION HANDLER DISPOSITION";
+        exceptionType = "INVALID EXCEPTION HANDLER DISPOSITION";
         break;
     case EXCEPTION_NONCONTINUABLE_EXCEPTION:
-        what = "NONCONTINUABLE EXCEPTION";
+        exceptionType = "NONCONTINUABLE EXCEPTION";
         break;
     case EXCEPTION_PRIV_INSTRUCTION:
-        what = "EXCEPTION_PRIV_INSTRUCTION";
+        exceptionType = "EXCEPTION_PRIV_INSTRUCTION";
         break;
     case EXCEPTION_SINGLE_STEP:
-        what = "EXCEPTION_SINGLE_STEP";
+        exceptionType = "EXCEPTION_SINGLE_STEP";
         break;
     case EXCEPTION_STACK_OVERFLOW:
         // handled below
-        break;
-    default:
-        what = "Unrecognized Exception";
-        snprintf(detailBuf, sizeof(detailBuf), "exception code = %lu", excRec.ExceptionCode);
-        detail = detailBuf;
         break;
     }
 
@@ -137,47 +163,48 @@ static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
     if (excRec.ExceptionCode != EXCEPTION_STACK_OVERFLOW)
     {
         char reason[256];
-        formatReason(reason, what, detail, addr);
-        abort(reason, true, true, (const pointer_t*)&excRec.ExceptionAddress);
+        formatReason(reason, exceptionType, details, addr);
+        abort(reason, makeSettings(), (const pointer_t*)&excRec.ExceptionAddress);
     }
     else
     {
-        abort(REASON_PREFIX "SEGMENTATION FAULT (stack overflow)", false, true);
+        AbortSettings settings;
+        settings.printStackTrace = false;
+        abort(REASON_PREFIX "SEGMENTATION FAULT (stack overflow)", settings);
     }
     return EXCEPTION_EXECUTE_HANDLER;
 }
 
+
 /**
  * Signal handler for Windows.
- * @param[in] sig    the signal number (ignored)
+ * @param[in] sig    the signal number
  */
-static void signalHandler(int sig)
+[[noreturn]] static void signalHandler(int sig)
 {
     char reason[256];
     char buf[32];
-    const char* what = nullptr;
+    const char* errorType = nullptr;
 
     switch (sig)
     {
     case SIGABRT:
-        what = "std::abort()";
-        break;
-    case SIGSEGV:
-        what = "SEGMENTATION FAULT";
+        errorType = "std::abort()";
         break;
     default:
-        snprintf(buf, sizeof(buf), "SIGNAL %d", sig);
-        what = buf;
+        // should not happen, but let's handle it
+        snprintf(buf, sizeof(buf), "unexpected signal %d", sig);
+        errorType = buf;
         break;
     }
-    formatReason(reason, what, nullptr, nullptr);
-    abort(reason, true, true);
+    formatReason(reason, errorType, nullptr, nullptr);
+    abort(reason);
 }
 
 /**
  * Handles pure virtual function calls on Windows.
  */
-static void onPureCall()
+[[noreturn]] static void onPureCall()
 {
     char reason[128];
     ooopsi::formatReason(reason, "PURE/DELETED VIRTUAL FUNCTION CALL");
@@ -354,7 +381,7 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
     default:
     {
         // should not happen, but let's handle it
-        snprintf(buf, sizeof(buf), "SIGNAL %d", sig);
+        snprintf(buf, sizeof(buf), "unexpected signal %d", sig);
         what = buf;
         break;
     }
@@ -362,16 +389,13 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
 
     char reason[256];
     formatReason(reason, what, detail, addr);
-    abort(reason, true, true, faultAddr);
+    abort(reason, makeSettings(true), faultAddr);
 }
 #endif // OOOPSI_WINDOWS
 
 /// What to do when std::terminate is called
-static void onTerminate()
+[[noreturn]] static void onTerminate()
 {
-    constexpr bool stackTrace = true;
-    constexpr bool inSignalHandler = false;
-
     /*
      * Note: This currently doesn't work with Visual Studio, see
      * https://developercommunity.visualstudio.com/content/problem/135332/stdcurrent-exception-returns-null-in-a-stdterminat.html
@@ -399,7 +423,7 @@ static void onTerminate()
         {
             // demangle the exception class name
             char className[128]{};
-            demangle(typeid(exc).name(), className, sizeof(className), inSignalHandler);
+            demangle(typeid(exc).name(), className, sizeof(className));
 
             // format the exception's type and error message
             snprintf(detail, sizeof(detail), "%s: \"%s\"", className, exc.what());
@@ -423,7 +447,7 @@ static void onTerminate()
 
         char reason[256];
         formatReason(reason, what, detail, nullptr);
-        abort(reason, stackTrace, inSignalHandler);
+        abort(reason);
     }
     else
     {
@@ -470,9 +494,7 @@ static void onTerminate()
                     {
                         char reason[256];
                         formatReason(reason, func.abortMessage, nullptr, &curFunc);
-                        abort(reason, stackTrace, inSignalHandler, &curFunc);
-                        // note: not reached...
-                        return;
+                        abort(reason, makeSettings(), &curFunc);
                     }
                 }
             }
@@ -482,7 +504,7 @@ static void onTerminate()
         // fallback...
         char reason[256];
         formatReason(reason, "std::terminate()", nullptr, nullptr);
-        abort(reason, true, false);
+        abort(reason);
     }
 }
 
@@ -512,11 +534,9 @@ HandlerSetup::HandlerSetup() noexcept
 #ifdef OOOPSI_WINDOWS
     {
         // catch Windows-exceptions
-        SetUnhandledExceptionFilter(onWindowsException);
+        AddVectoredExceptionHandler(/* first */ 1, onWindowsException);
         // catch std::abort
         signal(SIGABRT, signalHandler);
-        // note: don't catch SIGSEGV - the exception filter will be called, which has more infos
-        signal(SIGSEGV, signalHandler);
 
         // install a handler for pure virtual function calls
         // (called for deleted virtual functions as well, MSVC doesn't seem to distinguish them)
@@ -528,7 +548,7 @@ HandlerSetup::HandlerSetup() noexcept
         char messageBuffer[256];
         snprintf(messageBuffer, sizeof(messageBuffer), "%s(%d) failed: %s", what, param,
                  strerror(errno));
-        abort(messageBuffer, true, false);
+        abort(messageBuffer, makeSettings());
     };
 
     // use an alternate stack in case we have a stack overflow!

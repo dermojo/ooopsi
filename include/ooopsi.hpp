@@ -35,12 +35,27 @@ typedef void (*LogFunc)(const char*);
 /// Pointer alias. Avoid uint64_t/uintptr_t because they are a PITA when using printf.
 using pointer_t = unsigned long long;
 
+/// Parameters for printStackTrace().
+struct LogSettings
+{
+    /// the log function to use (nullptr: use the current handler)
+    LogFunc logFunc = nullptr;
+    /// demangle C++ function names? (recommended: don't in a Linux signal handler)
+    bool demangleNames = true;
+};
+
+/// Parameters for abort()
+struct AbortSettings : LogSettings
+{
+    bool printStackTrace = true;
+};
+
 /// Prints a stack trace using the given log function.
 /// The second argument indicates whether this function is called from a signal handler.
 /// In this case, the functionality is limited.
 /// The optional third argument is the address of the fault, used to highlight the according
 /// line in the backtrace (if found).
-OOOPSI_EXPORT void printStackTrace(LogFunc logFunc, bool inSignalHandler,
+OOOPSI_EXPORT void printStackTrace(LogSettings settings = LogSettings(),
                                    const pointer_t* faultAddr = nullptr) noexcept;
 
 
@@ -50,11 +65,9 @@ OOOPSI_EXPORT void printStackTrace(LogFunc logFunc, bool inSignalHandler,
 /// The stack trace is logged using the current log function, which can be set via setAbortFunc().
 /// The default will print to STDERR.
 ///
-/// @param reason               optional reason for the program termination
-/// @param printStackTrace      whether to print a stack trace (default: yes)
-/// @param inSignalHandler      must be set when called from a signal handler (default: false)
-[[noreturn]] OOOPSI_EXPORT void abort(const char* reason, bool printStackTrace = true,
-                                      bool inSignalHandler = false);
+/// @param reason               optional reason for program termination
+/// @param settings             controls log function etc.
+[[noreturn]] OOOPSI_EXPORT void abort(const char* reason, AbortSettings settings = AbortSettings());
 
 
 /// Sets the log function to use when terminating due to std::terminate, std::abort or some other

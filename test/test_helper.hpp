@@ -50,13 +50,11 @@ static void failStackOverflow()
         failStackOverflow();
 }
 
-#ifndef OOOPSI_MSVC
 static void failSegmentationFault()
 {
     int* p = (int*)0x12345678;
     *p = 0;
 }
-#endif // OOOPSI_MSVC
 
 
 #ifndef OOOPSI_WINDOWS // not possible on Windows (AFAIK)
