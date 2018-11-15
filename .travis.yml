@@ -10,6 +10,7 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-4.9
+            - libunwind-dev
       env: MYCC=gcc-4.9 MYCXX=g++-4.9
     - compiler: gcc
       addons:
@@ -18,6 +19,7 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-5
+            - libunwind-dev
       env: MYCC=gcc-5 MYCXX=g++-5
     - compiler: gcc
       addons:
@@ -26,6 +28,7 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-6
+            - libunwind-dev
       env: MYCC=gcc-6 MYCXX=g++-6
     - compiler: gcc
       addons:
@@ -34,6 +37,7 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-6
+            - libunwind-dev
             - lcov
       env: MYCC=gcc-6 MYCXX=g++-6 CODE_COVERAGE=on
     - compiler: clang
@@ -44,6 +48,7 @@ matrix:
             - llvm-toolchain-trusty
           packages:
             - clang-3.8
+            - libunwind-dev
       env: MYCC=clang-3.8 MYCXX=clang++-3.8
     - compiler: clang
       addons:
@@ -53,6 +58,7 @@ matrix:
             - llvm-toolchain-trusty-3.9
           packages:
             - clang-3.9
+            - libunwind-dev
       env: MYCC=clang-3.9 MYCXX=clang++-3.9
     - compiler: clang
       addons:
@@ -62,6 +68,7 @@ matrix:
             - llvm-toolchain-trusty-4.0
           packages:
             - clang-4.0
+            - libunwind-dev
       env: MYCC=clang-4.0 MYCXX=clang++-4.0
     - compiler: clang
       addons:
@@ -71,64 +78,15 @@ matrix:
             - llvm-toolchain-trusty-5.0
           packages:
             - clang-5.0
+            - libunwind-dev
       env: MYCC=clang-5.0 MYCXX=clang++-5.0
     - compiler: gcc
       addons:
         apt:
           packages:
             - g++-mingw-w64-x86-64
+            - libunwind-dev
       env: MYCC=/usr/bin/x86_64-w64-mingw32-gcc MYCXX=/usr/bin/x86_64-w64-mingw32-g++
-    - os: linux
-      env:
-        - TEST="Clang Format"
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty-4.0
-          packages:
-            - clang-format-4.0
-            - clang-4.0
-      script:
-        - mkdir build
-        - cd build
-        - ADD_OPTS="-DCMAKE_C_COMPILER=clang-4.0 -DCMAKE_CXX_COMPILER=clang++-4.0"
-        - ADD_OPTS="$ADD_OPTS -DCLANG_FORMAT=/usr/bin/clang-format-4.0"
-        - cmake $ADD_OPTS ..
-        - make format
-        - |
-          if [[ -n $(git diff) ]]; then
-            echo "Please run 'make format' before submitting a pull request"
-            echo ""
-            git diff
-            exit -1
-          fi
-    - os: linux
-      env:
-        - TEST="Clang Tidy"
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty-4.0
-          packages:
-            - clang-tidy-4.0
-            - clang-4.0
-      script:
-        - mkdir build
-        - cd build
-        - ADD_OPTS="-DCMAKE_C_COMPILER=clang-4.0 -DCMAKE_CXX_COMPILER=clang++-4.0"
-        - cmake $ADD_OPTS ..
-        - make tidy >output.txt
-        - |
-          if [[ -n $(grep "warning: " output.txt) ]] || [[ -n $(grep "error: " output.txt) ]]; then
-              echo "You must pass the clang tidy checks before submitting a pull request"
-              echo ""
-              grep --color -E '^|warning: |error: ' output.txt
-              exit -1;
-          else
-              echo -e "\033[1;32m\xE2\x9C\x93 passed:\033[0m $1";
-          fi
 
 script:
   - mkdir build
