@@ -6,11 +6,7 @@
 #include "ooopsi.hpp"
 
 #include <cstdio>
-#ifdef _MSC_VER
-#include <stdlib.h> // _exit()
-#else
-#include <unistd.h>
-#endif
+#include <cstdlib>
 
 namespace ooopsi
 {
@@ -22,9 +18,8 @@ namespace ooopsi
 /// Default log function: prints to STDERR.
 static void logToStderr(const char* message) noexcept
 {
-    if (message)
+    if (message != nullptr)
     {
-        // fprintf(stderr, "%s\n", message);
         fputs(message, stderr);
         fputc('\n', stderr);
     }
@@ -39,7 +34,7 @@ static LogFunc s_logFunc = logToStderr;
 
 void setAbortLogFunc(LogFunc func) noexcept
 {
-    if (func)
+    if (func != nullptr)
     {
         s_logFunc = func;
     }
@@ -54,30 +49,36 @@ LogFunc getAbortLogFunc() noexcept
     return s_logFunc;
 }
 
-[[noreturn]] void abort(const char* reason, bool printTrace, bool inSignalHandler,
-                        const uintptr_t* faultAddr) {
-    if (reason)
+[[noreturn]] void abort(const char* reason, AbortSettings settings, const pointer_t* faultAddr)
+{
+    if (settings.logFunc == nullptr)
     {
-        s_logFunc(reason);
+        settings.logFunc = getAbortLogFunc();
     }
 
-    if (printTrace)
+    if (reason != nullptr)
     {
-        printStackTrace(s_logFunc, inSignalHandler, faultAddr);
+        settings.logFunc(reason);
+    }
+
+    if (settings.printStackTrace)
+    {
+        printStackTrace(settings, faultAddr); // NOLINT (slicing is fine here)
     }
     else
     {
         // allow logging to stop
-        s_logFunc(nullptr);
+        settings.logFunc(nullptr);
     }
 
     // the application will now end
-    _exit(OOOPSI_EXIT_CODE);
+    std::_Exit(OOOPSI_EXIT_CODE);
 }
 
-  [[noreturn]] void abort(const char* reason, bool printTrace, bool inSignalHandler)
+[[noreturn]] void abort(const char* reason, AbortSettings settings)
 {
-    abort(reason, printTrace, inSignalHandler, nullptr);
+    // note: 'settings' is a POD, so std::move() has no effect here
+    abort(reason, settings, nullptr);
 }
 
 } // namespace ooopsi

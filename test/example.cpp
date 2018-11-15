@@ -1,3 +1,11 @@
+#ifdef _WIN32
+// required to pull in the library
+#ifndef USE_OOOPSI
+#define USE_OOOPSI
+#endif
+#endif
+
+
 #ifdef USE_OOOPSI
 #include "ooopsi.hpp"
 #endif // USE_OOOPSI
@@ -27,7 +35,7 @@ int main(int argc, char** argv)
     // list of supported actions
     const std::vector<Action> actions = {
 #ifdef USE_OOOPSI
-        { "trace", "Print a stack trace", [] { ooopsi::printStackTrace(nullptr, false); } },
+        { "trace", "Print a stack trace", [] { ooopsi::printStackTrace(); } },
         { "abort", "Call ooopsi::abort()", [] { ooopsi::abort("ooops"); } },
 #endif // USE_OOOPSI
         { "stdabort", "Call std::abort()", [] { std::abort(); } },
@@ -42,7 +50,7 @@ int main(int argc, char** argv)
         { "segfault", "Cause a segmentation fault", [] { failSegmentationFault(); } },
 #endif
         { "stackoverflow", "Cause a stack overflow", [] { failStackOverflow(); } },
-#ifndef _WIN32 // not possible on Windows (AFAIK)
+#ifndef OOOPSI_WINDOWS // not possible on Windows (AFAIK)
         { "buserror", "Cause a BUS error", [] { failBusError(); } },
 #endif
         { "fpdiv", "Divide by 0", [] { failFloatingPointIntDiv(); } },
@@ -53,7 +61,9 @@ int main(int argc, char** argv)
     for (int i = 1; i < argc; ++i)
     {
         if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0)
+        {
             showHelp = true;
+        }
     }
     if (argc != 2 || showHelp)
     {

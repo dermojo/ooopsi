@@ -4,7 +4,7 @@
 #include <gtest/gtest.h>
 
 // allow detection of wine because there are some differences...
-#ifdef _WIN32
+#ifdef OOOPSI_WINDOWS
 bool isWine() noexcept
 {
     static int is_wine = -1;
@@ -19,18 +19,18 @@ bool isWine() noexcept
     }
     return is_wine == 1;
 }
-#else
+#else  // !OOOPSI_WINDOWS
 bool isWine() noexcept
 {
     return false;
 }
-#endif
+#endif // OOOPSI_WINDOWS
 
 
 /*
  * GoogleTest uses a different RegEx engine on Windows ... :-(
  */
-#ifdef _WIN32
+#ifdef OOOPSI_WINDOWS
 #define LINENUM_REGEX "\\d+"
 #define BACKTRACE_REGEX_WINE ".*\n.*BACKTRACE.*"
 // TODO: the regex engine is too limited to check this
@@ -50,7 +50,8 @@ static std::string makeBtRegex(const char* prefix)
     return re;
 }
 
-#else
+#else // !OOOPSI_WINDOWS
+
 #define LINENUM_REGEX "[0-9]+"
 // ensure that known symbols are found
 #define BACKTRACE_REGEX ".*BACKTRACE.*__libc_start_main.*"
@@ -64,7 +65,7 @@ static std::string makeBtRegex(const char* prefix)
     return re;
 }
 
-#endif
+#endif // OOOPSI_WINDOWS
 
 static ooopsi::HandlerSetup s_setup;
 
@@ -88,12 +89,14 @@ static void writeStackTrace(const char* line)
 
 static void onSignal(int)
 {
-    ooopsi::printStackTrace(writeStackTrace, true);
+    ooopsi::AbortSettings settings;
+    settings.logFunc = writeStackTrace;
+    ooopsi::printStackTrace(settings);
 }
 
 TEST(Abort, StackTrace)
 {
-    // generate a stack trace
+// generate a stack trace
 
 #ifdef SIGINT
     // --> for ThreadSanitizer, call it from a signal handler
@@ -107,7 +110,7 @@ TEST(Abort, StackTrace)
     // simple comparison (this test's main intend is to have the sanitizers or valgrind check the
     // print function without crashing the current process)
 
-    ASSERT_GE(s_stackTraceNumLines, 2);
+    ASSERT_GE(s_stackTraceNumLines, 2u);
     ASSERT_TRUE(s_stackTraceEndsWithNULL);
 }
 
@@ -116,9 +119,11 @@ TEST(Abort, AbortDeath)
     // fail with some random message
     // expect a backtrace by default
     ASSERT_DEATH(ooopsi::abort("ooops"), makeBtRegex("^ooops"));
-    ASSERT_DEATH(ooopsi::abort("ooops", true), makeBtRegex("^ooops"));
+    ASSERT_DEATH(ooopsi::abort("ooops"), makeBtRegex("^ooops"));
     // but not if disabled
-    ASSERT_DEATH(ooopsi::abort("ooops", false), "^ooops\n$");
+    ooopsi::AbortSettings settings;
+    settings.printStackTrace = false;
+    ASSERT_DEATH(ooopsi::abort("ooops", settings), "^ooops\n$");
 }
 
 TEST(Abort, StdAbortDeath)
@@ -128,6 +133,8 @@ TEST(Abort, StdAbortDeath)
 
 TEST(Abort, TerminateDeath)
 {
+    // TODO: This fails with MSVC because std::current_exception() isn't implemented.
+
     // fail with some random message
     ASSERT_DEATH(
       failThrowStd(),
@@ -151,12 +158,11 @@ TEST(Abort, CrashVirtualDeath)
     }
 
     ASSERT_DEATH(failPureVirtual(),
-                 makeBtRegex("!!! TERMINATING DUE TO PURE VIRTUAL FUNCTION CALL"));
+                 makeBtRegex("!!! TERMINATING DUE TO PURE.* VIRTUAL FUNCTION CALL"));
     ASSERT_DEATH(failDeletedVirtual(),
-                 makeBtRegex("!!! TERMINATING DUE TO DELETED VIRTUAL FUNCTION CALL"));
+                 makeBtRegex("!!! TERMINATING DUE TO .*DELETED VIRTUAL FUNCTION CALL"));
 }
 
-#ifndef _MSC_VER // failSegmentationFault()
 TEST(Abort, SegmentationFaultDeath)
 {
     // general fault
@@ -172,20 +178,21 @@ TEST(Abort, SegmentationFaultDeath)
     }
     else
     {
+#ifdef OOOPSI_WINDOWS
+        ASSERT_DEATH(failStackOverflow(),
+                     "!!! TERMINATING DUE TO SEGMENTATION FAULT \\(stack overflow\\)");
+#else
         ASSERT_DEATH(failStackOverflow(),
                      "!!! TERMINATING DUE TO SEGMENTATION FAULT \\(stack overflow\\)"
-#ifndef _WIN32
-                     " @ 0x[0-9a-f]+" BACKTRACE_TRUNCATED_REGEX
+                     " @ 0x[0-9a-f]+" BACKTRACE_TRUNCATED_REGEX);
 #endif
-        );
     }
 
-#ifndef _WIN32
+#ifndef OOOPSI_WINDOWS
     // bus error
     ASSERT_DEATH(failBusError(), makeBtRegex("!!! TERMINATING DUE TO BUS ERROR"));
 #endif // _WIN32
 }
-#endif
 
 TEST(Abort, FloatingPointDeath)
 {

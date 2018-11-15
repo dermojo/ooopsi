@@ -11,14 +11,12 @@
 #include <system_error>
 #include <tuple> // for std::ignore
 
-#ifdef _WIN32
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
+#ifdef OOOPSI_WINDOWS
 #include <windows.h>
-#else
+#endif
+#ifdef OOOPSI_LINUX
 #include <sys/ucontext.h>
-#endif // _WIN32
+#endif
 
 #include <csignal>
 #include <cstring>
@@ -27,113 +25,137 @@ namespace ooopsi
 {
 
 
-#ifdef _WIN32 // Windows-specific handlers
+#ifdef OOOPSI_WINDOWS // Windows-specific handlers
+
+/// Windows SEH code for a C++ exception (0xE0000000 | ascii("msc"))
+static constexpr DWORD s_SEH_CPP_EXCEPTION = 0xE06D7363;
+/// The g++ runtime has a different code...
+static constexpr DWORD s_MINGW_CPP_EXCEPTION = 0x20474343;
 
 /**
- * Abort handler for Windows.
+ * Handler for Windows SEH exceptions.
  * @param[in] excInfo      information about the current exception
  */
 static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
 {
-    const char* what = "???";
-    const char* detail = nullptr;
+    const char* exceptionType = "???";
+    const char* details = nullptr;
     char detailBuf[64];
     const auto& excRec = *excInfo->ExceptionRecord;
-    const uintptr_t* addr = nullptr;
+    const pointer_t* addr = nullptr;
 
-    // TODO: how to get the function name?
-    printf("winExc, addr=%p\n", excRec.ExceptionAddress);
     switch (excRec.ExceptionCode)
     {
+    default:
+        // Anything not listed here is unknown or "not a problem", so skip any further action
+        return EXCEPTION_CONTINUE_SEARCH;
+
+    case s_SEH_CPP_EXCEPTION:
+    case s_MINGW_CPP_EXCEPTION:
+#if 0
+        // TODO: analyze if we can get infos that std::current_exception should have...
+        /*
+         * Parameter 0 is some internal value not important to the discussion.
+         * Parameter 1 is a pointer to the object being thrown (sort of).
+         * Parameter 2 is a pointer to information that describes the object being thrown.
+         * Parameter 3 is the HINSTANCE of the DLL that raised the exception.
+         *             (Present only on 64-bit Windows.)
+         */
+
+        printf("C++ exception:\n");
+        for (DWORD i = 0; i < excRec.NumberParameters; ++i)
+        {
+            printf("param[%lu]: %llx\n", i, excRec.ExceptionInformation[i]);
+        }
+#endif
+
+        // let onTerminate() handle it
+        return EXCEPTION_CONTINUE_SEARCH;
+
     case EXCEPTION_ACCESS_VIOLATION:
-        what = "SEGMENTATION FAULT";
+        exceptionType = "SEGMENTATION FAULT";
         if (excRec.NumberParameters >= 2)
         {
             // the first element contains a read/write flag
             // the second element contains the virtual address of the inaccessible data
-            addr = &excRec.ExceptionInformation[1];
+            addr = reinterpret_cast<const pointer_t*>(&excRec.ExceptionInformation[1]);
         }
         break;
     case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
-        what = "EXCEPTION_ARRAY_BOUNDS_EXCEEDED";
+        exceptionType = "EXCEPTION_ARRAY_BOUNDS_EXCEEDED";
         break;
     case EXCEPTION_BREAKPOINT:
-        what = "EXCEPTION_BREAKPOINT";
+        exceptionType = "EXCEPTION_BREAKPOINT";
         break;
     case EXCEPTION_DATATYPE_MISALIGNMENT:
-        what = "EXCEPTION_DATATYPE_MISALIGNMENT";
+        exceptionType = "EXCEPTION_DATATYPE_MISALIGNMENT";
         break;
     case EXCEPTION_FLT_DENORMAL_OPERAND:
-        what = "FLOATING POINT ERROR";
-        detail = "floating-point denormal operand";
+        exceptionType = "FLOATING POINT ERROR";
+        details = "floating-point denormal operand";
         break;
     case EXCEPTION_FLT_DIVIDE_BY_ZERO:
-        what = "FLOATING POINT ERROR";
-        detail = "floating-point divide by zero";
+        exceptionType = "FLOATING POINT ERROR";
+        details = "floating-point divide by zero";
         break;
     case EXCEPTION_FLT_INEXACT_RESULT:
-        what = "FLOATING POINT ERROR";
-        detail = " (floating-point inexact result)";
+        exceptionType = "FLOATING POINT ERROR";
+        details = " (floating-point inexact result)";
         break;
     case EXCEPTION_FLT_INVALID_OPERATION:
-        what = "FLOATING POINT ERROR";
-        detail = "floating-point invalid operation";
+        exceptionType = "FLOATING POINT ERROR";
+        details = "floating-point invalid operation";
         break;
     case EXCEPTION_FLT_OVERFLOW:
-        what = "FLOATING POINT ERROR";
-        detail = "floating-point overflow";
+        exceptionType = "FLOATING POINT ERROR";
+        details = "floating-point overflow";
         break;
     case EXCEPTION_FLT_STACK_CHECK:
-        what = "FLOATING POINT ERROR";
-        detail = "floating-point stack over/underflow";
+        exceptionType = "FLOATING POINT ERROR";
+        details = "floating-point stack over/underflow";
         break;
     case EXCEPTION_FLT_UNDERFLOW:
-        what = "FLOATING POINT ERROR";
-        detail = "floating-point underflow";
+        exceptionType = "FLOATING POINT ERROR";
+        details = "floating-point underflow";
         break;
     case EXCEPTION_ILLEGAL_INSTRUCTION:
-        what = "ILLEGAL INSTRUCTION";
+        exceptionType = "ILLEGAL INSTRUCTION";
         break;
     case EXCEPTION_IN_PAGE_ERROR:
-        what = "PAGE ERROR";
+        exceptionType = "PAGE ERROR";
         if (excRec.NumberParameters >= 3)
         {
             // the first element contains a read/write flag
             // the second element contains the virtual address of the inaccessible data
             // the third element contains the underlying NTSTATUS code that caused the exception
-            addr = &excRec.ExceptionInformation[1];
+            addr = reinterpret_cast<const pointer_t*>(&excRec.ExceptionInformation[1]);
             uint64_t status = excRec.ExceptionInformation[2];
             snprintf(detailBuf, sizeof(detailBuf), "NTSTATUS=%" PRIu64, status);
-            detail = detailBuf;
+            details = detailBuf;
         }
         break;
     case EXCEPTION_INT_DIVIDE_BY_ZERO:
-        what = "FLOATING POINT ERROR";
-        detail = "integer divide by zero";
+        exceptionType = "FLOATING POINT ERROR";
+        details = "integer divide by zero";
         break;
     case EXCEPTION_INT_OVERFLOW:
-        what = "FLOATING POINT ERROR";
-        detail = "integer overflow";
+        exceptionType = "FLOATING POINT ERROR";
+        details = "integer overflow";
         break;
     case EXCEPTION_INVALID_DISPOSITION:
-        what = "INVALID EXCEPTION HANDLER DISPOSITION";
+        exceptionType = "INVALID EXCEPTION HANDLER DISPOSITION";
         break;
     case EXCEPTION_NONCONTINUABLE_EXCEPTION:
-        what = "NONCONTINUABLE EXCEPTION";
+        exceptionType = "NONCONTINUABLE EXCEPTION";
         break;
     case EXCEPTION_PRIV_INSTRUCTION:
-        what = "EXCEPTION_PRIV_INSTRUCTION";
+        exceptionType = "EXCEPTION_PRIV_INSTRUCTION";
         break;
     case EXCEPTION_SINGLE_STEP:
-        what = "EXCEPTION_SINGLE_STEP";
+        exceptionType = "EXCEPTION_SINGLE_STEP";
         break;
     case EXCEPTION_STACK_OVERFLOW:
         // handled below
-        break;
-    default:
-        what = "Unrecognized Exception";
-        snprintf(detailBuf, sizeof(detailBuf), "exception code = %lu", excRec.ExceptionCode);
-        detail = detailBuf;
         break;
     }
 
@@ -141,31 +163,55 @@ static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
     if (excRec.ExceptionCode != EXCEPTION_STACK_OVERFLOW)
     {
         char reason[256];
-        formatReason(reason, what, detail, addr);
-        abort(reason, true, true, (const uintptr_t*)&excRec.ExceptionAddress);
+        formatReason(reason, exceptionType, details, addr);
+        abort(reason, makeSettings(), (const pointer_t*)&excRec.ExceptionAddress);
     }
     else
     {
-        abort(REASON_PREFIX "SEGMENTATION FAULT (stack overflow)", false, true);
+        AbortSettings settings;
+        settings.printStackTrace = false;
+        abort(REASON_PREFIX "SEGMENTATION FAULT (stack overflow)", settings);
     }
     return EXCEPTION_EXECUTE_HANDLER;
 }
 
+
 /**
  * Signal handler for Windows.
- * @param[in] sig    the signal number (ignored)
+ * @param[in] sig    the signal number
  */
-static void onAbort(int sig)
+[[noreturn]] static void signalHandler(int sig)
 {
-    // ignored - only SIGABRT expected
-    std::ignore = sig;
-
     char reason[256];
-    formatReason(reason, "std::abort()", nullptr, nullptr);
-    abort(reason, true, true);
+    char buf[32];
+    const char* errorType = nullptr;
+
+    switch (sig)
+    {
+    case SIGABRT:
+        errorType = "std::abort()";
+        break;
+    default:
+        // should not happen, but let's handle it
+        snprintf(buf, sizeof(buf), "unexpected signal %d", sig);
+        errorType = buf;
+        break;
+    }
+    formatReason(reason, errorType, nullptr, nullptr);
+    abort(reason);
 }
 
-#else  // !_WIN32
+/**
+ * Handles pure virtual function calls on Windows.
+ */
+[[noreturn]] static void onPureCall()
+{
+    char reason[128];
+    ooopsi::formatReason(reason, "PURE/DELETED VIRTUAL FUNCTION CALL");
+    ooopsi::abort(reason);
+}
+
+#else  // !OOOPSI_WINDOWS
 
 /// for systems supporting it, statically reserve it as an actual stack
 static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
@@ -181,15 +227,15 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
     char buf[64];
     const char* what = "";
     const char* detail = nullptr;
-    const uintptr_t* addr = nullptr;
+    const pointer_t* addr = nullptr;
 
     // determine were we got called from
-    const uintptr_t* faultAddr = nullptr;
-    auto* context = (const ucontext_t*)ctx;
-    if (context)
+    const pointer_t* faultAddr = nullptr;
+    auto* context = static_cast<const ucontext_t*>(ctx);
+    if (context != nullptr)
     {
-        static_assert(sizeof(greg_t) == sizeof(uintptr_t), "something is odd here...");
-        faultAddr = (const uintptr_t*)&context->uc_mcontext.gregs[REG_RIP];
+        static_assert(sizeof(greg_t) == sizeof(pointer_t), "something is odd here...");
+        faultAddr = reinterpret_cast<const pointer_t*>(&context->uc_mcontext.gregs[REG_RIP]);
     }
 
     switch (sig)
@@ -207,16 +253,18 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
         case SEGV_MAPERR:
             detail = "address not mapped to object";
             // may be a stack overflow...
-            if (context)
+            if (context != nullptr)
             {
                 // Let's try to distinguish the usual "segmentation fault" from a
                 // "stack overflow": Check if the address causing the fault is "slightly"
                 // past the end of the stack.
-                auto stackPtr = (uintptr_t)context->uc_mcontext.gregs[REG_RSP];
-                auto stackAddr = (uintptr_t)info->si_addr;
+                auto stackPtr = static_cast<pointer_t>(context->uc_mcontext.gregs[REG_RSP]);
+                auto stackAddr = reinterpret_cast<pointer_t>(info->si_addr);
                 constexpr auto rangeLimit = 1024;
                 if (stackAddr < stackPtr && stackPtr - stackAddr < rangeLimit)
+                {
                     detail = "stack overflow";
+                }
             }
             break;
         case SEGV_ACCERR:
@@ -231,7 +279,7 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
         default:
             break;
         }
-        addr = reinterpret_cast<uintptr_t*>(&info->si_addr);
+        addr = reinterpret_cast<pointer_t*>(&info->si_addr);
         break;
     }
     case SIGBUS:
@@ -257,7 +305,7 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
         default:
             break;
         }
-        addr = reinterpret_cast<uintptr_t*>(&info->si_addr);
+        addr = reinterpret_cast<pointer_t*>(&info->si_addr);
         break;
     }
     case SIGILL:
@@ -292,7 +340,7 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
         default:
             break;
         }
-        addr = reinterpret_cast<uintptr_t*>(&info->si_addr);
+        addr = reinterpret_cast<pointer_t*>(&info->si_addr);
         break;
     }
     case SIGFPE:
@@ -327,13 +375,13 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
         default:
             break;
         }
-        addr = reinterpret_cast<uintptr_t*>(&info->si_addr);
+        addr = reinterpret_cast<pointer_t*>(&info->si_addr);
         break;
     }
     default:
     {
         // should not happen, but let's handle it
-        snprintf(buf, sizeof(buf), "SIGNAL %d", sig);
+        snprintf(buf, sizeof(buf), "unexpected signal %d", sig);
         what = buf;
         break;
     }
@@ -341,16 +389,17 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
 
     char reason[256];
     formatReason(reason, what, detail, addr);
-    abort(reason, true, true, faultAddr);
+    abort(reason, makeSettings(true), faultAddr);
 }
-#endif // _WIN32
+#endif // OOOPSI_WINDOWS
 
 /// What to do when std::terminate is called
-static void onTerminate()
+[[noreturn]] static void onTerminate()
 {
-    constexpr bool stackTrace = true;
-    constexpr bool inSignalHandler = false;
-
+    /*
+     * Note: This currently doesn't work with Visual Studio, see
+     * https://developercommunity.visualstudio.com/content/problem/135332/stdcurrent-exception-returns-null-in-a-stdterminat.html
+     */
     auto currentException = std::current_exception();
     if (currentException)
     {
@@ -374,7 +423,7 @@ static void onTerminate()
         {
             // demangle the exception class name
             char className[128]{};
-            demangle(typeid(exc).name(), className, sizeof(className), inSignalHandler);
+            demangle(typeid(exc).name(), className, sizeof(className));
 
             // format the exception's type and error message
             snprintf(detail, sizeof(detail), "%s: \"%s\"", className, exc.what());
@@ -382,8 +431,10 @@ static void onTerminate()
         // handle strings (should not be used, but who knows...)
         catch (const char* err)
         {
-            if (!err)
+            if (err == nullptr)
+            {
                 err = "<null>";
+            }
 
             // indicate the exception's type
             snprintf(detail, sizeof(detail), "exception (const char*): \"%s\"", err);
@@ -396,12 +447,13 @@ static void onTerminate()
 
         char reason[256];
         formatReason(reason, what, detail, nullptr);
-        abort(reason, stackTrace, inSignalHandler);
+        abort(reason);
     }
     else
     {
-#ifdef _WIN32
+#ifdef OOOPSI_MINGW
         /*
+         * MinGW:
          * Overwriting libstdc++'s ABI functions doesn't work here due to differences in shared
          * library loading and symbol resolution.
          * Therefore, check if we were called from __cxa_pure_*.
@@ -409,7 +461,7 @@ static void onTerminate()
         struct Function
         {
             const char* symbolName;
-            uintptr_t symbolAddress;
+            pointer_t symbolAddress;
             const char* abortMessage;
         };
         std::array<Function, 2> possibleCallers{
@@ -427,13 +479,13 @@ static void onTerminate()
         {
             for (auto& func : possibleCallers)
             {
-                auto ptr = GetProcAddress(libstdcpp, func.symbolName);
-                func.symbolAddress = (uintptr_t)ptr;
+                FARPROC ptr = GetProcAddress(libstdcpp, func.symbolName);
+                func.symbolAddress = reinterpret_cast<pointer_t>(ptr);
             }
 
             for (WORD i = 0; i < numberOfFrames; ++i)
             {
-                const auto curFunc = (uintptr_t)stackFrames[i];
+                const auto curFunc = reinterpret_cast<pointer_t>(stackFrames[i]);
                 for (const auto& func : possibleCallers)
                 {
                     // check if the caller is identical or "shortly after" the function we're
@@ -442,57 +494,61 @@ static void onTerminate()
                     {
                         char reason[256];
                         formatReason(reason, func.abortMessage, nullptr, &curFunc);
-                        abort(reason, stackTrace, inSignalHandler, &curFunc);
-                        // note: not reached...
-                        return;
+                        abort(reason, makeSettings(), &curFunc);
                     }
                 }
             }
         }
-#endif
+#endif // OOOPSI_MINGW
 
         // fallback...
         char reason[256];
         formatReason(reason, "std::terminate()", nullptr, nullptr);
-        abort(reason, true, false);
+        abort(reason);
     }
 }
 
 static bool s_handlersRegistered = false;
 
 // Register signal and std::terminate handlers
-HandlerSetup::HandlerSetup()
+HandlerSetup::HandlerSetup() noexcept
 {
     // allow to disable the handlers, e.g. for debugging
     const char* opt = getenv("OOOPSI_DISABLE_HANDLERS"); // flawfinder: ignore
-    if (opt && strcmp(opt, "1") == 0)
+    if (opt != nullptr && strcmp(opt, "1") == 0)
+    {
         return;
+    }
 
     if (s_handlersRegistered)
+    {
         return;
-    else
-        s_handlersRegistered = true;
+    }
+    s_handlersRegistered = true;
 
     {
         // catch std::terminate
         std::set_terminate(onTerminate);
     }
 
-#ifdef _WIN32
+#ifdef OOOPSI_WINDOWS
     {
         // catch Windows-exceptions
-        SetUnhandledExceptionFilter(onWindowsException);
+        AddVectoredExceptionHandler(/* first */ 1, onWindowsException);
         // catch std::abort
-        signal(SIGABRT, onAbort);
-        // note: don't catch SIGSEGV - the exception filter will be called, which has more infos
+        signal(SIGABRT, signalHandler);
+
+        // install a handler for pure virtual function calls
+        // (called for deleted virtual functions as well, MSVC doesn't seem to distinguish them)
+        _set_purecall_handler(onPureCall);
     }
-#else
+#else  // !OOOPSI_WINDOWS
     // error handler
     auto err = [](const char* what, int param) {
         char messageBuffer[256];
         snprintf(messageBuffer, sizeof(messageBuffer), "%s(%d) failed: %s", what, param,
                  strerror(errno));
-        abort(messageBuffer, true, false);
+        abort(messageBuffer, makeSettings());
     };
 
     // use an alternate stack in case we have a stack overflow!
@@ -504,29 +560,31 @@ HandlerSetup::HandlerSetup()
         altStack.ss_size = s_ALT_STACK.size();
         altStack.ss_sp = s_ALT_STACK.data();
         if (sigaltstack(&altStack, nullptr) != 0)
+        {
             err("sigaltstack", s_ALT_STACK_SIZE);
+        }
     }
 
     // catch fatal signals
     for (int sig : { SIGABRT, SIGSEGV, SIGBUS, SIGILL, SIGFPE })
     {
         // prepare the signal structure
-        struct sigaction act;
+        struct sigaction act; // NOLINT (initialization below)
         memset(&act, 0, sizeof(act));
         sigemptyset(&act.sa_mask);
-        act.sa_flags = SA_ONSTACK | SA_SIGINFO;
+        act.sa_flags = SA_ONSTACK | SA_SIGINFO; // NOLINT (sorry, that's C ...)
         act.sa_sigaction = signalHandler;
 
         if (sigaction(sig, &act, nullptr) != 0)
+        {
             err("sigaction", sig);
+        }
     }
-#endif
+#endif // OOOPSI_WINDOWS
 }
 
-HandlerSetup::~HandlerSetup()
-{
-    // skipping unregistering - not worth the hassle
-}
+// skipping unregistering - not worth the hassle
+HandlerSetup::~HandlerSetup() = default;
 
 /// static instance for RAII-style setup
 /// (not working when linking statically though...)
