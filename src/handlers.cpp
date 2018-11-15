@@ -172,7 +172,7 @@ static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
         settings.printStackTrace = false;
         abort(REASON_PREFIX "SEGMENTATION FAULT (stack overflow)", settings);
     }
-    return EXCEPTION_EXECUTE_HANDLER;
+    // unreachable: return EXCEPTION_EXECUTE_HANDLER;
 }
 
 

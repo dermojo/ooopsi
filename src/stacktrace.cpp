@@ -12,10 +12,14 @@
 #ifdef OOOPSI_WINDOWS
 #include <windows.h>
 // order matters..
+#ifdef OOOPSI_MSVC
 #pragma warning(push)
 #pragma warning(disable : 4091)
+#endif // OOOPSI_MSVC
 #include <dbghelp.h>
+#ifdef OOOPSI_MSVC
 #pragma warning(pop)
+#endif // OOOPSI_MSVC
 #else
 #include <libunwind.h>
 #endif

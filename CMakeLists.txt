@@ -60,22 +60,28 @@ if (WIN32)
     target_link_libraries(ooopsi imagehlp)
 endif (WIN32)
 
-set_property(TARGET ooopsi PROPERTY CXX_STANDARD 11)
-set_property(TARGET ooopsi PROPERTY CXX_STANDARD_REQUIRED ON)
-set_property(TARGET tests PROPERTY CXX_STANDARD 11)
-set_property(TARGET tests PROPERTY CXX_STANDARD_REQUIRED ON)
+set_property(TARGET ooopsi  PROPERTY CXX_STANDARD 11)
+set_property(TARGET ooopsi  PROPERTY CXX_STANDARD_REQUIRED ON)
+set_property(TARGET tests   PROPERTY CXX_STANDARD 11)
+set_property(TARGET tests   PROPERTY CXX_STANDARD_REQUIRED ON)
 set_property(TARGET example PROPERTY CXX_STANDARD 11)
 set_property(TARGET example PROPERTY CXX_STANDARD_REQUIRED ON)
 
 # We want a lot of warnings!
 if(MSVC)
-    target_compile_options(tests PUBLIC /W4 /WX)
+    target_compile_options(ooopsi  PRIVATE /W4 /WX)
+    target_compile_options(tests   PRIVATE /W4 /WX)
+    target_compile_options(example PRIVATE /W4 /WX)
+    
     # Prevent deprecation errors for std::tr1 in googletest
-    target_compile_options(tests PUBLIC /D_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING)
+    target_compile_options(tests PRIVATE /D_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING)
     # Disable deprecation warnings - we need the same C functions on all platforms
     target_compile_options(ooopsi PRIVATE /D_CRT_SECURE_NO_WARNINGS)
 else()
-    target_compile_options(tests PUBLIC -Wall -Weffc++ -Werror)
+    target_compile_options(ooopsi  PRIVATE -Wall -Werror)
+    target_compile_options(tests   PRIVATE -Wall -Werror)
+    target_compile_options(example PRIVATE -Wall -Werror)
+
     target_link_libraries(tests pthread)
 endif()
 
@@ -96,6 +102,26 @@ endif()
 
 option(ENABLE_COVERAGE "Enable code coverage flags" OFF)
 
+
+# run clang-format on all files
+list(APPEND CLANG_FORMAT_ARGS
+    -style=file
+    -i
+    ${CMAKE_SOURCE_DIR}/include/*.hpp
+    ${CMAKE_SOURCE_DIR}/src/*.hpp
+    ${CMAKE_SOURCE_DIR}/src/*.cpp
+    ${CMAKE_SOURCE_DIR}/test/*.hpp
+    ${CMAKE_SOURCE_DIR}/test/*.cpp
+)
+
+if(NOT DEFINED CLANG_FORMAT)
+    set(CLANG_FORMAT clang-format-6.0)
+endif()
+add_custom_target(
+    format
+    COMMAND ${CLANG_FORMAT} ${CLANG_FORMAT_ARGS}
+    COMMENT "running clang-format"
+)
 
 
 # clang tidy support (using version 6.0 atm)
