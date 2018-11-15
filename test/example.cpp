@@ -46,9 +46,7 @@ int main(int argc, char** argv)
         { "throw-int", "Terminate due to an uncaught int", [] { failThrowInt(); } },
         { "pure-virt", "Call a pure virtual function", [] { failPureVirtual(); } },
         { "deleted-virt", "Call a deleted virtual function", [] { failDeletedVirtual(); } },
-#ifndef _MSC_VER
         { "segfault", "Cause a segmentation fault", [] { failSegmentationFault(); } },
-#endif
         { "stackoverflow", "Cause a stack overflow", [] { failStackOverflow(); } },
 #ifndef OOOPSI_WINDOWS // not possible on Windows (AFAIK)
         { "buserror", "Cause a BUS error", [] { failBusError(); } },
