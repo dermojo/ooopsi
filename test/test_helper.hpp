@@ -95,7 +95,8 @@ DO_NOT_OPTIMIZE static char failBusError()
         runtimeError("Failed to mmap", fileName);
 
     // now truncate it
-    ftruncate(fileno(f), 0);
+    if (ftruncate(fileno(f), 0) != 0)
+        runtimeError("Failed to truncate", fileName);
     char c = ((char*)data)[0];
 
     // cleanup - never reached
@@ -157,6 +158,8 @@ DO_NOT_OPTIMIZE static int failFloatingPointIntDiv()
 #endif
 #ifdef OOOPSI_GCC
 #pragma GCC diagnostic push
+// the error seems to be introduced in GCC 6, ignore if unknown
+#pragma GCC diagnostic ignored "-Wpragmas"
 #pragma GCC diagnostic ignored "-Wterminate"
 #endif
 

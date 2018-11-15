@@ -36,6 +36,7 @@ bool isWine() noexcept
 // TODO: the regex engine is too limited to check this
 //#define BACKTRACE_REGEX_REAL ".*BACKTRACE.*RtlUserThreadStart.*"
 #define BACKTRACE_REGEX_REAL BACKTRACE_REGEX_WINE
+#define BACKTRACE_REGEX_TERM BACKTRACE_REGEX_WINE
 #define BACKTRACE_TRUNCATED_REGEX BACKTRACE_REGEX_WINE
 // not supported
 #define SEGV_DETAILS ""
@@ -50,11 +51,27 @@ static std::string makeBtRegex(const char* prefix)
     return re;
 }
 
+static std::string makeBtRegexTerm(const char* prefix)
+{
+    std::string re = prefix;
+    if (isWine())
+        re += BACKTRACE_REGEX_WINE;
+    else
+        re += BACKTRACE_REGEX_TERM;
+    return re;
+}
+
 #else // !OOOPSI_WINDOWS
 
 #define LINENUM_REGEX "[0-9]+"
 // ensure that known symbols are found
 #define BACKTRACE_REGEX ".*BACKTRACE.*__libc_start_main.*"
+// different call stack for std::terminate() on clang
+#ifdef OOOPSI_CLANG
+#define BACKTRACE_REGEX_TERMINATE ".*BACKTRACE.*__clang_call_terminate.*"
+#else
+#define BACKTRACE_REGEX_TERMINATE BACKTRACE_REGEX
+#endif
 #define BACKTRACE_TRUNCATED_REGEX ".*BACKTRACE.*(truncating)"
 #define SEGV_DETAILS "\\(address not mapped to object\\) "
 
@@ -62,6 +79,13 @@ static std::string makeBtRegex(const char* prefix)
 {
     std::string re = prefix;
     re += BACKTRACE_REGEX;
+    return re;
+}
+
+static std::string makeBtRegexTerm(const char* prefix)
+{
+    std::string re = prefix;
+    re += BACKTRACE_REGEX_TERMINATE;
     return re;
 }
 
@@ -138,13 +162,14 @@ TEST(Abort, TerminateDeath)
     // fail with some random message
     ASSERT_DEATH(
       failThrowStd(),
-      makeBtRegex("!!! TERMINATING DUE TO std::terminate\\(\\).*std::runtime_error.*whoopsi!"));
+      makeBtRegexTerm("!!! TERMINATING DUE TO std::terminate\\(\\).*std::runtime_error.*whoopsi!"));
     ASSERT_DEATH(failThrowSysErr(),
-                 makeBtRegex("!!! TERMINATING DUE TO std::terminate\\(\\).*std::system_error"));
-    ASSERT_DEATH(failThrowChar(),
-                 makeBtRegex("!!! TERMINATING DUE TO std::terminate\\(\\).*This is my error text"));
+                 makeBtRegexTerm("!!! TERMINATING DUE TO std::terminate\\(\\).*std::system_error"));
+    ASSERT_DEATH(
+      failThrowChar(),
+      makeBtRegexTerm("!!! TERMINATING DUE TO std::terminate\\(\\).*This is my error text"));
     ASSERT_DEATH(failThrowInt(),
-                 makeBtRegex("!!! TERMINATING DUE TO std::terminate\\(\\).*unknown exception"));
+                 makeBtRegexTerm("!!! TERMINATING DUE TO std::terminate\\(\\).*unknown exception"));
 }
 
 
