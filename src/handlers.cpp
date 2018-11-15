@@ -8,8 +8,11 @@
 // private library header
 #include "internal.hpp"
 
+#include <csignal>
+#include <cstring>
 #include <system_error>
 #include <tuple> // for std::ignore
+#include <typeinfo>
 
 #ifdef OOOPSI_WINDOWS
 #include <windows.h>
@@ -17,9 +20,6 @@
 #ifdef OOOPSI_LINUX
 #include <sys/ucontext.h>
 #endif
-
-#include <csignal>
-#include <cstring>
 
 namespace ooopsi
 {
@@ -211,7 +211,7 @@ static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
     ooopsi::abort(reason);
 }
 
-#else  // !OOOPSI_WINDOWS
+#else // !OOOPSI_WINDOWS
 
 /// for systems supporting it, statically reserve it as an actual stack
 static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
@@ -270,12 +270,16 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
         case SEGV_ACCERR:
             detail = "invalid permissions for mapped object";
             break;
+#ifdef SEGV_BNDERR
         case SEGV_BNDERR:
             detail = "failed address bound checks";
             break;
+#endif
+#ifdef SEGV_PKUERR
         case SEGV_PKUERR:
             detail = "access was denied by memory protection keys";
             break;
+#endif
         default:
             break;
         }
