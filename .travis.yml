@@ -10,7 +10,7 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-4.9
-            - libunwind-dev
+            - libunwind8-dev
       env: MYCC=gcc-4.9 MYCXX=g++-4.9
     - compiler: gcc
       addons:
@@ -19,7 +19,7 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-5
-            - libunwind-dev
+            - libunwind8-dev
       env: MYCC=gcc-5 MYCXX=g++-5
     - compiler: gcc
       addons:
@@ -28,7 +28,7 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-6
-            - libunwind-dev
+            - libunwind8-dev
       env: MYCC=gcc-6 MYCXX=g++-6
     - compiler: gcc
       addons:
@@ -37,7 +37,7 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-6
-            - libunwind-dev
+            - libunwind8-dev
             - lcov
       env: MYCC=gcc-6 MYCXX=g++-6 CODE_COVERAGE=on
     - compiler: clang
@@ -48,7 +48,7 @@ matrix:
             - llvm-toolchain-trusty
           packages:
             - clang-3.8
-            - libunwind-dev
+            - libunwind8-dev
       env: MYCC=clang-3.8 MYCXX=clang++-3.8
     - compiler: clang
       addons:
@@ -58,7 +58,7 @@ matrix:
             - llvm-toolchain-trusty-3.9
           packages:
             - clang-3.9
-            - libunwind-dev
+            - libunwind8-dev
       env: MYCC=clang-3.9 MYCXX=clang++-3.9
     - compiler: clang
       addons:
@@ -68,7 +68,7 @@ matrix:
             - llvm-toolchain-trusty-4.0
           packages:
             - clang-4.0
-            - libunwind-dev
+            - libunwind8-dev
       env: MYCC=clang-4.0 MYCXX=clang++-4.0
     - compiler: clang
       addons:
@@ -78,14 +78,14 @@ matrix:
             - llvm-toolchain-trusty-5.0
           packages:
             - clang-5.0
-            - libunwind-dev
+            - libunwind8-dev
       env: MYCC=clang-5.0 MYCXX=clang++-5.0
     - compiler: gcc
       addons:
         apt:
           packages:
             - g++-mingw-w64-x86-64
-            - libunwind-dev
+            - libunwind8-dev
       env: MYCC=/usr/bin/x86_64-w64-mingw32-gcc MYCXX=/usr/bin/x86_64-w64-mingw32-g++
 
 script:
