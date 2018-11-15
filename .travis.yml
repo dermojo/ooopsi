@@ -9,9 +9,9 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-4.9
+            - g++-4.8
             - libunwind8-dev
-      env: MYCC=gcc-4.9 MYCXX=g++-4.9
+      env: MYCC=gcc-4.8 MYCXX=g++-4.8
     - compiler: gcc
       addons:
         apt:
