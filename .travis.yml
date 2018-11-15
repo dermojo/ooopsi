@@ -36,10 +36,18 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-6
+            - g++-7
             - libunwind8-dev
-            - lcov
-      env: MYCC=gcc-6 MYCXX=g++-6 CODE_COVERAGE=on
+      env: MYCC=gcc-7 MYCXX=g++-7
+    - compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-8
+            - libunwind8-dev
+      env: MYCC=gcc-8 MYCXX=g++-8
     - compiler: clang
       addons:
         apt:
@@ -80,6 +88,16 @@ matrix:
             - clang-5.0
             - libunwind8-dev
       env: MYCC=clang-5.0 MYCXX=clang++-5.0
+    - compiler: clang
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-trusty-6.0
+          packages:
+            - clang-6.0
+            - libunwind8-dev
+      env: MYCC=clang-6.0 MYCXX=clang++-6.0
     - compiler: gcc
       addons:
         apt:
