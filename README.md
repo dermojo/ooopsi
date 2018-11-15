@@ -1,5 +1,7 @@
 # ooopsi
 
+[![Travis-CI status](https://travis-ci.org/dermojo/ooopsi.svg?branch=truncation-policy)](https://travis-ci.org/dermojo/ooopsi)
+
 This library installs C/C++ and OS "hooks" to catch events that would crash the program:
 
 * unhandled C++ exceptions
