@@ -237,6 +237,10 @@ DO_NOT_OPTIMIZE static void failDeletedVirtual()
         virtual ~Bar() {}
     };
 
+    // make sure we use Bar to avoid undefined references due to optimizations
+    auto dummy = new Bar();
+    delete dummy;
+
     // note: using placement new to avoid segmentation faults - we don't want to test these
     unsigned char buffer[128];
     auto foo = new (buffer) Foo();
