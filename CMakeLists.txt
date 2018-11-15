@@ -2,12 +2,10 @@
 cmake_minimum_required(VERSION 3.2 FATAL_ERROR)
 project(ooopsi VERSION 0.1 LANGUAGES CXX)
 
+# Setup testing using GTEST
 if(MSVC)
-    add_definitions(-D_CRT_SECURE_NO_WARNINGS)
     set(gtest_force_shared_crt ON)
 endif()
-
-# Setup testing using GTEST
 enable_testing()
 add_subdirectory(extern/googletest)
 
@@ -70,8 +68,7 @@ set_property(TARGET example PROPERTY CXX_STANDARD 11)
 set_property(TARGET example PROPERTY CXX_STANDARD_REQUIRED ON)
 
 # We want a lot of warnings!
-string(TOLOWER "${CMAKE_BUILD_TOOL}" MY_BUILDTOOL)
-if(MY_BUILDTOOL MATCHES "(msdev|devenv|nmake|msbuild)")
+if(MSVC)
     target_compile_options(tests PUBLIC /W4 /WX)
     # Prevent deprecation errors for std::tr1 in googletest
     target_compile_options(tests PUBLIC /D_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING)
