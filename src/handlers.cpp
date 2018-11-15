@@ -408,7 +408,7 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
     if (currentException)
     {
         const char* const what = "std::terminate()";
-        char detail[128];
+        char detail[256];
         // if there is a current exception, re-throw it to handle it's type properly
         try
         {
