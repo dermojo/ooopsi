@@ -1,11 +1,7 @@
-#ifdef _WIN32
-// required to pull in the library
-#ifndef USE_OOOPSI
-#define USE_OOOPSI
-#endif
-#endif
-
-
+/**
+ * @file    crasher.cpp
+ * @brief   Crashes in various ways...
+ */
 #ifdef USE_OOOPSI
 #include "ooopsi.hpp"
 #endif // USE_OOOPSI
@@ -28,10 +24,6 @@ public:
 
 int main(int argc, char** argv)
 {
-#ifdef USE_OOOPSI
-    ooopsi::HandlerSetup setup;
-#endif // USE_OOOPSI
-
     // list of supported actions
     const std::vector<Action> actions = {
 #ifdef USE_OOOPSI

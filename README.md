@@ -2,19 +2,23 @@
 
 [![Travis-CI status](https://travis-ci.org/dermojo/ooopsi.svg?branch=truncation-policy)](https://travis-ci.org/dermojo/ooopsi)
 
-This library installs C/C++ and OS "hooks" to catch events that would crash the program:
+This library installs C/C++ and OS hooks and handlers for events that would crash your program.
+Instead of silently printing a message before terminating or sending a bug report to your OS vendor,
+it allows to log a backtrace of the program's current stack and the reason why it terminates.
 
-* unhandled C++ exceptions
+libooopsi currently catches:
+
+* unhandled C++ exceptions (leading to `std::terminate`)
 * segmentation faults
 * stack overflows
 * illegal instructions
 * floating-point errors (e.g. division by zero)
+* `std::abort`
 * ...
 
-Instead of crashing the process, the library logs backtrace of the current thread before
-terminating the process.
+![](docs/demo.gif)
 
-"ooopsi" stands for:
+The name "ooopsi" stands for:
 * Out
 * Of
 * Options
