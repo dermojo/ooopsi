@@ -107,7 +107,7 @@ matrix:
           packages:
             - clang-6.0
             - libunwind8-dev
-      env: MYCC=clang-7.0 MYCXX=clang++-7.0
+      env: MYCC=clang-7 MYCXX=clang++-7
     - compiler: gcc
       addons:
         apt:
