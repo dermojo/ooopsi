@@ -18,7 +18,10 @@ libooopsi currently catches:
 
 ![](docs/demo.gif)
 
-The name "ooopsi" stands for:
+
+## Where does the name come from?
+
+It's an acronym for:
 * Out
 * Of
 * Options
@@ -26,16 +29,15 @@ The name "ooopsi" stands for:
 * Stack
 * Information
 
-### Dependencies
+Because that's all we can do then ;-)
 
-(TODO)
 
-* CMake
-* GCC/Clang
-* MSVC to be tested
-* libraries
-    * libunwind for Linux
-    * imagehlp for Windows
+## Dependencies and supported platforms
+
+The library needs a C++11 compiler and supports Linux and Windows, both in 64 bit only.
+
+To build the library, you need `libunwind-dev` on Linux and `imagehlp` on Windows as well
+as CMake. The unit tests require GoogleTest, which is used as a git submodule.
 
 
 ## License
