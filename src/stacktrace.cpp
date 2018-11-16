@@ -144,7 +144,7 @@ size_t demangle(const char* name, char* buf, const size_t bufSize)
 
 #else
 
-    // not supported (yet)
+    // not supported with this OS/compiler
     strncpy(buf, name, bufSize);
 
 #endif // _CXXABI_H
@@ -215,11 +215,11 @@ void printStackTrace(LogSettings settings, const pointer_t* faultAddr) noexcept
         WORD numberOfFrames = RtlCaptureStackBackTrace(0, s_MAX_STACK_FRAMES, stackFrames, NULL);
 
         char symBuffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
-        PSYMBOL_INFO pSymbol = (PSYMBOL_INFO)symBuffer;
+        PSYMBOL_INFO pSymbol = reinterpret_cast<PSYMBOL_INFO>(symBuffer);
 
         for (WORD i = 0; i < numberOfFrames; ++i)
         {
-            const DWORD64 address = (DWORD64)stackFrames[i];
+            const DWORD64 address = reinterpret_cast<DWORD64>(stackFrames[i]);
 
             DWORD64 dwDisplacement = 0;
             const char* symName = nullptr;

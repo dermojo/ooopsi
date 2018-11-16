@@ -50,7 +50,9 @@ target_include_directories(example PRIVATE include src)
 target_link_libraries(tests gtest_main)
 # and of course against this library
 target_link_libraries(tests ooopsi)
-target_link_libraries(example ooopsi)
+if (WIN32)
+    target_link_libraries(example ooopsi)
+endif()
 
 # add libunwind for all *NIX systems
 if (UNIX)
@@ -78,9 +80,15 @@ if(MSVC)
     # Disable deprecation warnings - we need the same C functions on all platforms
     target_compile_options(ooopsi PRIVATE /D_CRT_SECURE_NO_WARNINGS)
 else()
-    target_compile_options(ooopsi  PRIVATE -Wall -Werror)
-    target_compile_options(tests   PRIVATE -Wall -Werror)
-    target_compile_options(example PRIVATE -Wall -Werror)
+    SET(OOOPSI_WARNINGS -Wall -Werror -Wextra -Wshadow -Wold-style-cast -Wcast-align -Wunused
+                        -Wpedantic -Wconversion -Wsign-conversion -Wformat=2)
+    if (CMAKE_COMPILER_IS_GNUCXX)
+        SET(OOOPSI_WARNINGS ${OOOPSI_WARNINGS} -Wlogical-op -Wuseless-cast)
+    endif()
+    # -Wduplicated-branches
+    target_compile_options(ooopsi  PRIVATE ${OOOPSI_WARNINGS})
+    target_compile_options(tests   PRIVATE ${OOOPSI_WARNINGS})
+    target_compile_options(example PRIVATE ${OOOPSI_WARNINGS})
 
     target_link_libraries(tests pthread)
 endif()

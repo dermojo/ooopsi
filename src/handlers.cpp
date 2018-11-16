@@ -78,7 +78,7 @@ static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
         {
             // the first element contains a read/write flag
             // the second element contains the virtual address of the inaccessible data
-            addr = reinterpret_cast<const pointer_t*>(&excRec.ExceptionInformation[1]);
+            addr = &excRec.ExceptionInformation[1];
         }
         break;
     case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
@@ -128,7 +128,7 @@ static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
             // the first element contains a read/write flag
             // the second element contains the virtual address of the inaccessible data
             // the third element contains the underlying NTSTATUS code that caused the exception
-            addr = reinterpret_cast<const pointer_t*>(&excRec.ExceptionInformation[1]);
+            addr = &excRec.ExceptionInformation[1];
             uint64_t status = excRec.ExceptionInformation[2];
             snprintf(detailBuf, sizeof(detailBuf), "NTSTATUS=%" PRIu64, status);
             details = detailBuf;
@@ -164,7 +164,7 @@ static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
     {
         char reason[256];
         formatReason(reason, exceptionType, details, addr);
-        abort(reason, makeSettings(), (const pointer_t*)&excRec.ExceptionAddress);
+        abort(reason, makeSettings(), reinterpret_cast<const pointer_t*>(&excRec.ExceptionAddress));
     }
     else
     {

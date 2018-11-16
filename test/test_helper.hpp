@@ -44,7 +44,8 @@ static void failStackOverflow()
 
     // use some stack space that can't be optimized
     char buffer[128];
-    snprintf(buffer, sizeof(buffer), "now = %ld", (long)time(nullptr));
+    long long now = time(nullptr);
+    snprintf(buffer, sizeof(buffer), "now = %lld", now);
     // try to avoid Clang's warnings...
     if (buffer[0] == 'n')
         failStackOverflow();
@@ -52,7 +53,7 @@ static void failStackOverflow()
 
 static void failSegmentationFault()
 {
-    int* p = (int*)0x12345678;
+    int* p = reinterpret_cast<int*>(0x12345678);
     *p = 0;
 }
 
@@ -97,7 +98,7 @@ DO_NOT_OPTIMIZE static char failBusError()
     // now truncate it
     if (ftruncate(fileno(f), 0) != 0)
         runtimeError("Failed to truncate", fileName);
-    char c = ((char*)data)[0];
+    char c = reinterpret_cast<char*>(data)[0];
 
     // cleanup - never reached
     munmap(data, size);
@@ -120,8 +121,18 @@ static void failIllegalInstruction()
 
     // fill it with illegal instructions
     memset(page, 0xff, size);
-    // execute it
+
+#ifdef OOOPSI_GCC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
+    // cast it
     auto func = reinterpret_cast<void (*)()>(page);
+#ifdef OOOPSI_GCC
+#pragma GCC diagnostic pop
+#endif
+
+    // execute it
     func();
 
 // not reached
@@ -136,7 +147,8 @@ DO_NOT_OPTIMIZE static int failFloatingPointIntDiv()
 {
     // try to avoid any clever compile-time optimizations...
     char buffer[128];
-    snprintf(buffer, sizeof(buffer), "now = %ld", (long)time(nullptr));
+    long long now = time(nullptr);
+    snprintf(buffer, sizeof(buffer), "now = %lld", now);
     int a = buffer[0] - 'n' + 1; // always 1
     int b = buffer[1] - 'o';     // always 0
 
