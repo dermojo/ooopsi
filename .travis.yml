@@ -105,7 +105,7 @@ matrix:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-xenial-7
           packages:
-            - clang-7.0
+            - clang-6.0
             - libunwind8-dev
       env: MYCC=clang-7.0 MYCXX=clang++-7.0
     - compiler: gcc
