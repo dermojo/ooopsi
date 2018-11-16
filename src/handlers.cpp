@@ -275,17 +275,10 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
                 // past the end of the stack.
                 auto stackPtr = static_cast<pointer_t>(context->uc_mcontext.gregs[REG_RSP]);
                 auto stackAddr = reinterpret_cast<pointer_t>(info->si_addr);
-                constexpr auto rangeLimit = 2048;
-                if (stackAddr < stackPtr && stackPtr - stackAddr < rangeLimit)
+                constexpr auto rangeLimit = 2048u;
+                if (stackPtr - stackAddr < rangeLimit)
                 {
                     detail = "stack overflow";
-                }
-                else
-                {
-                    // debugging on Travis...
-                    FILE* f = fopen("debug.txt", "a");
-                    fprintf(f, "segfault [addr=%llx stack=%llx]\n", stackAddr, stackPtr);
-                    fclose(f);
                 }
             }
             break;

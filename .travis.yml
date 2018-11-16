@@ -107,7 +107,7 @@ matrix:
           packages:
             - clang-6.0
             - libunwind8-dev
-      env: MYCC=clang-7 MYCXX=clang++-7
+      env: MYCC=clang MYCXX=clang++
     - compiler: gcc
       addons:
         apt:
@@ -137,19 +137,7 @@ script:
       BUILD_TYPE=Debug
     fi
   - |
-    if [[ -n "$CODE_COVERAGE" ]] ; then
-      ADD_OPTS="$ADD_OPTS -DENABLE_COVERAGE=$CODE_COVERAGE"
-      BUILD_TYPE=Debug
-    fi
   - ADD_OPTS="$ADD_OPTS -DCMAKE_BUILD_TYPE=$BUILD_TYPE"
   - cmake $ADD_OPTS ..
   - make
   - if [[ "$MYCC" != *mingw* ]] ; then make runtest; fi
-  - cat debug.txt
-  - |
-    if [[ -n "$CODE_COVERAGE" ]] ; then
-      lcov -d . -c -o coverage.info                      # parse coverage data
-      lcov -r coverage.info "/usr*" -o coverage.info     # remove data for system headers
-      lcov -l coverage.info                              # just list a short summary of the results
-      bash <(curl -s https://codecov.io/bash)
-    fi
