@@ -24,6 +24,21 @@
 namespace ooopsi
 {
 
+/// Demangling is by default disabled in signal handlers: allow to overwrite this.
+static bool s_forceDemangling = false;
+
+/// Creates AbortSettings from the current context.
+inline AbortSettings makeSettings(bool inSignalHandler = false) noexcept
+{
+    AbortSettings settings;
+#ifdef OOOPSI_LINUX
+    settings.demangleNames = !inSignalHandler || s_forceDemangling;
+#else
+    std::ignore = inSignalHandler;
+#endif
+    return settings;
+}
+
 
 #ifdef OOOPSI_WINDOWS // Windows-specific handlers
 
@@ -400,7 +415,8 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
 
     char reason[256];
     formatReason(reason, what, detail, addr);
-    abort(reason, makeSettings(true), faultAddr);
+    constexpr bool inSigHandler = true;
+    abort(reason, makeSettings(inSigHandler), faultAddr);
 }
 #endif // OOOPSI_WINDOWS
 
@@ -530,6 +546,13 @@ HandlerSetup::HandlerSetup() noexcept
     {
         return;
     }
+    // allow to enable demangling even when dumping from a signal handler
+    opt = getenv("OOOPSI_FORCE_DEMANGLE"); // flawfinder: ignore
+    if (opt != nullptr && strcmp(opt, "1") == 0)
+    {
+        s_forceDemangling = true;
+    }
+
 
     if (s_handlersRegistered)
     {
