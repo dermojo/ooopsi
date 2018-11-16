@@ -70,10 +70,15 @@ set_property(TARGET example PROPERTY CXX_STANDARD 11)
 set_property(TARGET example PROPERTY CXX_STANDARD_REQUIRED ON)
 
 # We want a lot of warnings!
+# (seet https://github.com/lefticus/cppbestpractices/blob/master/02-Use_the_Tools_Available.md)
 if(MSVC)
-    target_compile_options(ooopsi  PRIVATE /W4 /WX)
-    target_compile_options(tests   PRIVATE /W4 /WX)
-    target_compile_options(example PRIVATE /W4 /WX)
+    SET(OOOPSI_WARNINGS /W4 /WX /permissive- 
+                        /w14242 /w14254 /w14263 /w14265 /w14287 /we4289 /w14296 /w14311 /w14545
+                        /w14546 /w14547 /w14549 /w14555 /w14619 /w14640 /w14826 /w14905 /w14906
+                        /w14928)
+    target_compile_options(ooopsi  PRIVATE ${OOOPSI_WARNINGS})
+    target_compile_options(tests   PRIVATE ${OOOPSI_WARNINGS})
+    target_compile_options(example PRIVATE ${OOOPSI_WARNINGS})
     
     # Prevent deprecation errors for std::tr1 in googletest
     target_compile_options(tests PRIVATE /D_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING)
@@ -85,7 +90,6 @@ else()
     if (CMAKE_COMPILER_IS_GNUCXX)
         SET(OOOPSI_WARNINGS ${OOOPSI_WARNINGS} -Wlogical-op -Wuseless-cast)
     endif()
-    # -Wduplicated-branches
     target_compile_options(ooopsi  PRIVATE ${OOOPSI_WARNINGS})
     target_compile_options(tests   PRIVATE ${OOOPSI_WARNINGS})
     target_compile_options(example PRIVATE ${OOOPSI_WARNINGS})
