@@ -145,6 +145,7 @@ script:
   - cmake $ADD_OPTS ..
   - make
   - if [[ "$MYCC" != *mingw* ]] ; then make runtest; fi
+  - cat debug.txt
   - |
     if [[ -n "$CODE_COVERAGE" ]] ; then
       lcov -d . -c -o coverage.info                      # parse coverage data

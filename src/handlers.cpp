@@ -265,6 +265,13 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
                 {
                     detail = "stack overflow";
                 }
+                else
+                {
+                    // debugging on Travis...
+                    FILE* f = fopen("debug.txt", "a");
+                    fprintf(f, "segfault [addr=%llx stack=%llx]\n", stackAddr, stackPtr);
+                    fclose(f);
+                }
             }
             break;
         case SEGV_ACCERR:
