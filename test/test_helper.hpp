@@ -175,9 +175,20 @@ DO_NOT_OPTIMIZE static int failFloatingPointIntDiv()
 #pragma GCC diagnostic ignored "-Wterminate"
 #endif
 
+/// Custom exception class
+class MyException : public std::exception
+{
+public:
+    const char* what() const noexcept override { return "this is my exception"; }
+};
+
 static void failThrowStd() noexcept
 {
     throw std::runtime_error("whoopsi!");
+}
+static void failThrowCustomExc() noexcept
+{
+    throw MyException();
 }
 static void failThrowSysErr() noexcept
 {

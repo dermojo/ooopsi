@@ -120,7 +120,7 @@ static void onSignal(int)
 
 TEST(Abort, StackTrace)
 {
-    // generate a stack trace
+// generate a stack trace
 
 #ifdef SIGINT
     // --> for ThreadSanitizer, call it from a signal handler
@@ -163,6 +163,10 @@ TEST(Abort, TerminateDeath)
     ASSERT_DEATH(
       failThrowStd(),
       makeBtRegexTerm("!!! TERMINATING DUE TO std::terminate\\(\\).*std::runtime_error.*whoopsi!"));
+    ASSERT_DEATH(
+      failThrowCustomExc(),
+      makeBtRegexTerm(
+        "!!! TERMINATING DUE TO std::terminate\\(\\).*MyException.*this is my exception"));
     ASSERT_DEATH(failThrowSysErr(),
                  makeBtRegexTerm("!!! TERMINATING DUE TO std::terminate\\(\\).*std::system_error"));
     ASSERT_DEATH(

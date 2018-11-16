@@ -40,6 +40,8 @@ int main(int argc, char** argv)
 #endif // USE_OOOPSI
         { "stdabort", "Call std::abort()", [] { std::abort(); } },
         { "throw-exc", "Terminate due to an uncaught std::exception", [] { failThrowStd(); } },
+        { "throw-cust", "Terminate due to an uncaught custom exception",
+          [] { failThrowCustomExc(); } },
         { "throw-syserr", "Terminate due to an uncaught std::system_error",
           [] { failThrowSysErr(); } },
         { "throw-char", "Terminate due to an uncaught const char*", [] { failThrowChar(); } },
