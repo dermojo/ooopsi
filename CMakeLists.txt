@@ -56,7 +56,11 @@ endif()
 
 # add libunwind for all *NIX systems
 if (UNIX)
-    target_link_libraries(ooopsi unwind-x86_64 unwind)
+    find_library(LIBUNWIND_LIBRARIES NAMES unwind-x86_64 unwind)
+    if(NOT LIBUNWIND_LIBRARIES)
+        message(FATAL_ERROR "libunwind not found")
+    endif()
+    target_link_libraries(ooopsi ${LIBUNWIND_LIBRARIES})
 endif (UNIX)
 if (WIN32)
     target_link_libraries(ooopsi imagehlp)
@@ -70,7 +74,7 @@ set_property(TARGET example PROPERTY CXX_STANDARD 11)
 set_property(TARGET example PROPERTY CXX_STANDARD_REQUIRED ON)
 
 # We want a lot of warnings!
-# (seet https://github.com/lefticus/cppbestpractices/blob/master/02-Use_the_Tools_Available.md)
+# (see https://github.com/lefticus/cppbestpractices/blob/master/02-Use_the_Tools_Available.md)
 if(MSVC)
     SET(OOOPSI_WARNINGS /W4 /WX /permissive- 
                         /w14242 /w14254 /w14263 /w14265 /w14287 /we4289 /w14296 /w14311 /w14545
