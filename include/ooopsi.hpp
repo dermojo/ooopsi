@@ -2,7 +2,7 @@
  * @file    ooopsi.hpp
  *
  * This is the 'ooopsi' crash handler library.
- * See XXX for details.
+ * See https://github.com/dermojo/ooopsi for details.
  */
 
 #ifndef OOOPSI_HPP_
@@ -76,12 +76,15 @@ OOOPSI_EXPORT void printStackTrace(LogSettings settings = LogSettings(),
 ///  - After the last line, it is called with a nullptr (to allow e.g. closing/flushing etc.).
 ///
 /// Passing a nullptr restores the default log function (which prints to STDERR).
+///
+/// Note that this function isn't thread-safe and should be called at program startup before any
+/// threads are created.
 OOOPSI_EXPORT void setAbortLogFunc(LogFunc func) noexcept;
 
-/// Returns the current log function pointer.
+/// Returns the current log function pointer (also not thread-safe).
 OOOPSI_EXPORT LogFunc getAbortLogFunc() noexcept;
 
-/// Register signal and std::terminate handlers
+/// RAII helper class to register signal and std::terminate handlers.
 class OOOPSI_EXPORT HandlerSetup
 {
 public:
