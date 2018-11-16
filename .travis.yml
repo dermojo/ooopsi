@@ -73,7 +73,7 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty-4.0
+            - llvm-toolchain-xenial
           packages:
             - clang-4.0
             - libunwind8-dev
@@ -83,7 +83,7 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty-5.0
+            - llvm-toolchain-xenial
           packages:
             - clang-5.0
             - libunwind8-dev
@@ -93,11 +93,21 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty-6.0
+            - llvm-toolchain-xenial-6.0
           packages:
             - clang-6.0
             - libunwind8-dev
       env: MYCC=clang-6.0 MYCXX=clang++-6.0
+    - compiler: clang
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-xenial-7
+          packages:
+            - clang-7.0
+            - libunwind8-dev
+      env: MYCC=clang-7.0 MYCXX=clang++-7.0
     - compiler: gcc
       addons:
         apt:
