@@ -19,6 +19,32 @@ libooopsi currently catches:
 ![](docs/demo.gif)
 
 
+## Where does it log?
+
+By default, the stack trace is logged to STDERR. To override this behavior, use `ooopsi::setAbortLogFunc()` in your program to set a custom logging function. This function will
+be called line-wise for every line in the stack trace, followed by a call with a `nullptr`
+argument to indicate the end (to allow flushing etc.).
+
+Please be aware that the log function will potentially be called from a signal handler, which
+should do only very restrictive things. Make sure to read up on `man signal-safety` (for Linux)
+before customizing log function.
+
+
+## Dependencies and supported platforms
+
+The library needs a C++11 compiler and supports Linux and Windows, both in 64 bit only.
+
+To build the library, you need `libunwind-dev` on Linux and `imagehlp` on Windows as well
+as CMake. The unit tests require GoogleTest, which is used as a git submodule.
+
+
+## How do I include it in my program?
+
+It's sufficient to simply link the shared library against your program. No adaptations are
+required. On Linux, it's also possible to use `LD_PRELOAD` to "inject" the library without
+having to modify the program at all.
+
+
 ## Where does the name come from?
 
 It's an acronym for:
@@ -30,14 +56,6 @@ It's an acronym for:
 * Information
 
 Because that's all we can do then ;-)
-
-
-## Dependencies and supported platforms
-
-The library needs a C++11 compiler and supports Linux and Windows, both in 64 bit only.
-
-To build the library, you need `libunwind-dev` on Linux and `imagehlp` on Windows as well
-as CMake. The unit tests require GoogleTest, which is used as a git submodule.
 
 
 ## License
