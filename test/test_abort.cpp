@@ -51,9 +51,11 @@ static std::string makeBtRegex(const char* prefix)
     return re;
 }
 
-static std::string makeBtRegexTerm(const char* prefix)
+static std::string makeBtRegexTerm(const char* prefix, const char* reason)
 {
     std::string re = prefix;
+    // not supported here
+    std::ignore = reason;
     if (isWine())
         re += BACKTRACE_REGEX_WINE;
     else
@@ -82,9 +84,10 @@ static std::string makeBtRegex(const char* prefix)
     return re;
 }
 
-static std::string makeBtRegexTerm(const char* prefix)
+static std::string makeBtRegexTerm(const char* prefix, const char* reason)
 {
     std::string re = prefix;
+    re += reason;
     re += BACKTRACE_REGEX_TERMINATE;
     return re;
 }
@@ -160,20 +163,17 @@ TEST(Abort, TerminateDeath)
     // TODO: This fails with MSVC because std::current_exception() isn't implemented.
 
     // fail with some random message
-    ASSERT_DEATH(
-      failThrowStd(),
-      makeBtRegexTerm("!!! TERMINATING DUE TO std::terminate\\(\\).*std::runtime_error.*whoopsi!"));
-    ASSERT_DEATH(
-      failThrowCustomExc(),
-      makeBtRegexTerm(
-        "!!! TERMINATING DUE TO std::terminate\\(\\).*MyException.*this is my exception"));
-    ASSERT_DEATH(failThrowSysErr(),
-                 makeBtRegexTerm("!!! TERMINATING DUE TO std::terminate\\(\\).*std::system_error"));
-    ASSERT_DEATH(
-      failThrowChar(),
-      makeBtRegexTerm("!!! TERMINATING DUE TO std::terminate\\(\\).*This is my error text"));
-    ASSERT_DEATH(failThrowInt(),
-                 makeBtRegexTerm("!!! TERMINATING DUE TO std::terminate\\(\\).*unknown exception"));
+    ASSERT_DEATH(failThrowStd(), makeBtRegexTerm("!!! TERMINATING DUE TO std::terminate\\(\\).*",
+                                                 "std::runtime_error.*whoopsi!"));
+    ASSERT_DEATH(failThrowCustomExc(),
+                 makeBtRegexTerm("!!! TERMINATING DUE TO std::terminate\\(\\).*",
+                                 "MyException.*this is my exception"));
+    ASSERT_DEATH(failThrowSysErr(), makeBtRegexTerm("!!! TERMINATING DUE TO std::terminate\\(\\).*",
+                                                    "std::system_error"));
+    ASSERT_DEATH(failThrowChar(), makeBtRegexTerm("!!! TERMINATING DUE TO std::terminate\\(\\).*",
+                                                  "This is my error text"));
+    ASSERT_DEATH(failThrowInt(), makeBtRegexTerm("!!! TERMINATING DUE TO std::terminate\\(\\).*",
+                                                 "unknown exception"));
 }
 
 
