@@ -1,6 +1,7 @@
 # ooopsi
 
-[![Travis-CI status](https://travis-ci.org/dermojo/ooopsi.svg?branch=truncation-policy)](https://travis-ci.org/dermojo/ooopsi)
+[![Travis-CI status](https://travis-ci.org/dermojo/ooopsi.svg?branch=master)](https://travis-ci.org/dermojo/ooopsi)
+[![AppVeyor status](https://ci.appveyor.com/api/projects/status/github/dermojo/ooopsi?branch=master&svg=true)](https://ci.appveyor.com/project/dermojo/ooopsi)
 
 This library installs C/C++ and OS hooks and handlers for events that would crash your program.
 Instead of silently printing a message before terminating or sending a bug report to your OS vendor,
