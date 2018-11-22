@@ -1,8 +1,11 @@
 # Windows Build Configuration for AppVeyor
 
 image:
-- Visual Studio 2015
-- Visual Studio 2017
+  - Visual Studio 2015
+  - Visual Studio 2017
+
+platform:
+  - x64
 
 install:
   - cd %APPVEYOR_BUILD_FOLDER%
