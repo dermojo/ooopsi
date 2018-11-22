@@ -12,12 +12,8 @@
 #include <cinttypes>
 #include <cstdint>
 #include <cstring>
+#include <mutex>
 #include <tuple> // for std::ignore
-
-
-// TODO: make hidden
-namespace ooopsi
-{
 
 /*
  * OS detection
@@ -26,6 +22,9 @@ namespace ooopsi
 #define OOOPSI_WINDOWS
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
 #endif
 #ifdef __GNUC__
 #define OOOPSI_MINGW
@@ -46,24 +45,20 @@ namespace ooopsi
 #define OOOPSI_MSVC
 #endif
 
-static_assert(sizeof(pointer_t) >= sizeof(void*), "Need to find another pointer type!");
-static_assert(sizeof(pointer_t) >= sizeof(uintptr_t), "Need to find another pointer type!");
+
+#ifdef OOOPSI_WINDOWS
+#include <windows.h>
+#endif
+
+// TODO: make hidden
+namespace ooopsi
+{
 
 /// reserve 16KB alternate stack, allowing to put some text buffers on it
 static constexpr size_t s_ALT_STACK_SIZE = 16 * 1024;
 
 /// limits the length of the trace
-static constexpr size_t s_MAX_STACK_FRAMES = 64;
-
-/// Tries to demangle the given symbol name to make it 'printable'. If this fails, the original
-/// name is copied into the buffer.
-///
-/// @param[in]  name              the mangled name
-/// @param[out] buf               output buffer
-/// @param[in]  bufSize           size of the output buffer
-/// @param[in]  inSignalHandler   whether this function is called from a signal handler
-/// @return number of bytes written
-size_t demangle(const char* name, char* buf, size_t bufSize);
+static constexpr size_t s_MAX_STACK_FRAMES = 128;
 
 
 /// Extension of the public abort() function with an optional address that caused the fault.
@@ -74,7 +69,7 @@ size_t demangle(const char* name, char* buf, size_t bufSize);
 #define REASON_PREFIX "!!! TERMINATING DUE TO "
 
 /// Formats a string containing the abort reason
-template <std::size_t N>
+template <size_t N>
 void formatReason(char (&buffer)[N], const char* what, const char* detail = nullptr,
                   const pointer_t* addr = nullptr)
 {
@@ -87,9 +82,42 @@ void formatReason(char (&buffer)[N], const char* what, const char* detail = null
     if (addr)
     {
         size_t len = strlen(buffer);
-        snprintf(buffer + len, N - len, " @ 0x%llx", *addr);
+        // avoid padding '0's here, format as non-pointer
+        uintptr_t myaddr = reinterpret_cast<uintptr_t>(*addr);
+        snprintf(buffer + len, N - len, " @ 0x%" PRIxPTR, myaddr);
     }
 }
+
+#ifdef OOOPSI_WINDOWS
+#if defined(OOOPSI_MINGW) && !defined(_GLIBCXX_HAS_GTHREADS)
+// MinGW without thread support: create a small wrapper as a workaround
+class DbgHelpMutex
+{
+private:
+    CRITICAL_SECTION m_cs;
+
+public:
+    DbgHelpMutex() { InitializeCriticalSection(&m_cs); }
+    ~DbgHelpMutex() { DeleteCriticalSection(&m_cs); }
+
+    void lock() { EnterCriticalSection(&m_cs); }
+    void unlock() { LeaveCriticalSection(&m_cs); }
+};
+#else
+using DbgHelpMutex = std::recursive_mutex;
+#endif
+
+/**
+ * Mutex that guards access to all DbgHelp functions:
+ *
+ *  All DbgHelp functions, such as this one, are single threaded. Therefore, calls from more than
+ *  one thread to this function will likely result in unexpected behavior or memory corruption.
+ *  To avoid this, you must synchronize all concurrent calls from more than one thread to this
+ *  function.
+ */
+extern DbgHelpMutex s_dbgHelpMutex;
+
+#endif
 
 } // namespace ooopsi
 

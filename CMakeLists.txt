@@ -17,11 +17,12 @@ add_library(ooopsi SHARED
         src/handlers.cpp
         src/itanium_abi.cpp
         src/stacktrace.cpp
+        src/demangle.cpp
     )
 target_compile_options(ooopsi PRIVATE -DOOOPSI_BUILDING_SHARED_LIB)
 
 # Every library has unit tests, of course
-add_executable(tests    test/test_abort.cpp)
+add_executable(tests    test/test_abort.cpp test/test_trace.cpp test/test_demangle.cpp)
 # Build a crashing sample application: one copy without the lib, one with
 add_executable(crasher_plain  test/crasher.cpp)
 add_executable(crasher_ooopsi test/crasher.cpp)
@@ -45,7 +46,7 @@ target_include_directories(crasher_plain  PRIVATE include src)
 target_include_directories(crasher_ooopsi PRIVATE include src)
 
 # Link test executable against gtest & gtest_main
-target_link_libraries(tests gtest_main)
+target_link_libraries(tests gtest_main gmock)
 # and of course against this library
 target_link_libraries(tests ooopsi)
 target_link_libraries(crasher_ooopsi ooopsi)

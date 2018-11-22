@@ -9,6 +9,7 @@
 #define OOOPSI_HPP_
 
 #include <cstdint>
+#include <string>
 
 #ifdef _MSC_VER
 #define OOOPSI_DLL_EXPORT __declspec(dllexport)
@@ -33,7 +34,7 @@ namespace ooopsi
 typedef void (*LogFunc)(const char*);
 
 /// Pointer alias. Avoid uint64_t/uintptr_t because they are a PITA when using printf.
-using pointer_t = unsigned long long;
+using pointer_t = const void*;
 
 /// Parameters for printStackTrace().
 struct LogSettings
@@ -55,9 +56,46 @@ struct AbortSettings : LogSettings
 /// In this case, the functionality is limited.
 /// The optional third argument is the address of the fault, used to highlight the according
 /// line in the backtrace (if found).
+///
+/// Note: only throws if the log function does (and it shouldn't...) or memory allocation
+/// failed during demangling.
 OOOPSI_EXPORT void printStackTrace(LogSettings settings = LogSettings(),
-                                   const pointer_t* faultAddr = nullptr) noexcept;
+                                   const pointer_t* faultAddr = nullptr);
 
+
+/// A single stack frame.
+struct StackFrame
+{
+    /// function address
+    pointer_t address = nullptr;
+
+    /// (de)mangled function name (if possible)
+    std::string function;
+
+    /// offset of 'address' relative to the start of the function
+    size_t offset = 0;
+};
+
+/// Collects a stack trace into the given buffer.
+/// Note: not safe to use in signal handlers due to the allocation of the function name.
+///
+/// @param[out] buffer           buffer that will be filled with stack frames
+/// @param[in]  bufferSize       maximum number of frames to store in 'buffer'
+/// @return number of actually stored frames in 'buffer'
+OOOPSI_EXPORT size_t collectStackTrace(StackFrame* buffer, size_t bufferSize) noexcept;
+
+/// Tries to demangle a C++ symbol (usually a function name).
+/// Note: not safe to use in signal handlers due to the allocation of the function name.
+///
+/// @param[in] symbol        the symbol to demangle
+/// @return either the demangled name or a copy of 'symbol' as fallback
+OOOPSI_EXPORT std::string demangle(const char* symbol);
+
+/// Wrapper for strings
+inline std::string demangle(const std::string& symbol)
+{
+    return demangle(symbol.c_str());
+}
 
 /// Aborts the current process' execution, similar to std::abort, but logs a stack trace and the
 /// given reason (if given).
@@ -84,7 +122,9 @@ OOOPSI_EXPORT void setAbortLogFunc(LogFunc func) noexcept;
 /// Returns the current log function pointer (also not thread-safe).
 OOOPSI_EXPORT LogFunc getAbortLogFunc() noexcept;
 
-/// RAII helper class to register signal and std::terminate handlers.
+/// RAII helper class to register all necessary handlers and hooks.
+/// You only need this class when building a static library - the shared lib does this
+/// automatically.
 class OOOPSI_EXPORT HandlerSetup
 {
 public:

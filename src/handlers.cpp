@@ -93,7 +93,7 @@ static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
         {
             // the first element contains a read/write flag
             // the second element contains the virtual address of the inaccessible data
-            addr = &excRec.ExceptionInformation[1];
+            addr = reinterpret_cast<const pointer_t*>(&excRec.ExceptionInformation[1]);
         }
         break;
     case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
@@ -143,7 +143,7 @@ static LONG WINAPI onWindowsException(EXCEPTION_POINTERS* excInfo)
             // the first element contains a read/write flag
             // the second element contains the virtual address of the inaccessible data
             // the third element contains the underlying NTSTATUS code that caused the exception
-            addr = &excRec.ExceptionInformation[1];
+            addr = reinterpret_cast<const pointer_t*>(&excRec.ExceptionInformation[1]);
             uint64_t status = excRec.ExceptionInformation[2];
             snprintf(detailBuf, sizeof(detailBuf), "NTSTATUS=%" PRIu64, status);
             details = detailBuf;
@@ -273,8 +273,8 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
                 // Let's try to distinguish the usual "segmentation fault" from a
                 // "stack overflow": Check if the address causing the fault is "slightly"
                 // past the end of the stack.
-                auto stackPtr = static_cast<pointer_t>(context->uc_mcontext.gregs[REG_RSP]);
-                auto stackAddr = reinterpret_cast<pointer_t>(info->si_addr);
+                auto stackPtr = static_cast<uintptr_t>(context->uc_mcontext.gregs[REG_RSP]);
+                auto stackAddr = reinterpret_cast<uintptr_t>(info->si_addr);
                 constexpr auto rangeLimit = 2048u;
                 if (stackPtr - stackAddr < rangeLimit)
                 {
@@ -298,7 +298,7 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
         default:
             break;
         }
-        addr = reinterpret_cast<pointer_t*>(&info->si_addr);
+        addr = reinterpret_cast<const pointer_t*>(&info->si_addr);
         break;
     }
     case SIGBUS:
@@ -324,7 +324,7 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
         default:
             break;
         }
-        addr = reinterpret_cast<pointer_t*>(&info->si_addr);
+        addr = reinterpret_cast<const pointer_t*>(&info->si_addr);
         break;
     }
     case SIGILL:
@@ -359,7 +359,7 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
         default:
             break;
         }
-        addr = reinterpret_cast<pointer_t*>(&info->si_addr);
+        addr = reinterpret_cast<const pointer_t*>(&info->si_addr);
         break;
     }
     case SIGFPE:
@@ -394,7 +394,7 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
         default:
             break;
         }
-        addr = reinterpret_cast<pointer_t*>(&info->si_addr);
+        addr = reinterpret_cast<const pointer_t*>(&info->si_addr);
         break;
     }
     default:
@@ -442,11 +442,10 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
         catch (const std::exception& exc)
         {
             // demangle the exception class name
-            char className[128]{};
-            demangle(typeid(exc).name(), className, sizeof(className));
+            std::string className = demangle(typeid(exc).name());
 
             // format the exception's type and error message
-            snprintf(detail, sizeof(detail), "%s: \"%s\"", className, exc.what());
+            snprintf(detail, sizeof(detail), "%s: \"%s\"", className.c_str(), exc.what());
         }
         // handle strings (should not be used, but who knows...)
         catch (const char* err)
@@ -481,7 +480,7 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
         struct Function
         {
             const char* symbolName;
-            pointer_t symbolAddress;
+            uintptr_t symbolAddress;
             const char* abortMessage;
         };
         std::array<Function, 2> possibleCallers{
@@ -500,12 +499,12 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
             for (auto& func : possibleCallers)
             {
                 FARPROC ptr = GetProcAddress(libstdcpp, func.symbolName);
-                func.symbolAddress = reinterpret_cast<pointer_t>(ptr);
+                func.symbolAddress = reinterpret_cast<uintptr_t>(ptr);
             }
 
             for (WORD i = 0; i < numberOfFrames; ++i)
             {
-                const auto curFunc = reinterpret_cast<pointer_t>(stackFrames[i]);
+                const auto curFunc = reinterpret_cast<uintptr_t>(stackFrames[i]);
                 for (const auto& func : possibleCallers)
                 {
                     // check if the caller is identical or "shortly after" the function we're
@@ -513,8 +512,9 @@ static std::array<uint8_t, s_ALT_STACK_SIZE> s_ALT_STACK;
                     if (curFunc >= func.symbolAddress && curFunc - func.symbolAddress <= 64)
                     {
                         char reason[256];
-                        formatReason(reason, func.abortMessage, nullptr, &curFunc);
-                        abort(reason, makeSettings(), &curFunc);
+                        pointer_t faultAddr = &stackFrames[i];
+                        formatReason(reason, func.abortMessage, nullptr, &faultAddr);
+                        abort(reason, makeSettings(), &faultAddr);
                     }
                 }
             }

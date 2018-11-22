@@ -10,8 +10,6 @@
 #include "internal.hpp"
 
 #ifdef OOOPSI_WINDOWS
-#include <windows.h>
-// order matters..
 #ifdef OOOPSI_MSVC
 #pragma warning(push)
 #pragma warning(disable : 4091)
@@ -24,182 +22,33 @@
 #include <libunwind.h>
 #endif
 
-// for compilers that support it...
-#ifndef OOOPSI_MSVC
-#include <cxxabi.h>
+#ifdef OOOPSI_MSVC
+#define OOOPSI_FORCE_INLINE __forceinline
+#else
+#define OOOPSI_FORCE_INLINE
 #endif
 
-#include <mutex>
 #include <tuple> // for std::ignore
 
 #include <cstdint>
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
 
 namespace ooopsi
 {
 
 #ifdef OOOPSI_WINDOWS
-#if defined(OOOPSI_MINGW) && !defined(_GLIBCXX_HAS_GTHREADS)
-// MinGW without thread support: create a small wrapper as a workaround
-class DbgHelpMutex
-{
-private:
-    CRITICAL_SECTION m_cs;
-
-public:
-    DbgHelpMutex() { InitializeCriticalSection(&m_cs); }
-    ~DbgHelpMutex() { DeleteCriticalSection(&m_cs); }
-
-    void lock() { EnterCriticalSection(&m_cs); }
-    void unlock() { LeaveCriticalSection(&m_cs); }
-};
-#else
-using DbgHelpMutex = std::recursive_mutex;
+DbgHelpMutex s_dbgHelpMutex;
 #endif
+
 /**
- * Mutex that guards access to all DbgHelp functions:
- *
- *  All DbgHelp functions, such as this one, are single threaded. Therefore, calls from more than
- *  one thread to this function will likely result in unexpected behavior or memory corruption.
- *  To avoid this, you must synchronize all concurrent calls from more than one thread to this
- *  function.
+ * Implementation of the stack collection: the handler is called for every frame.
+ * Note: this function is force-inlined to avoid having it show up in the call stack.
  */
-static DbgHelpMutex s_dbgHelpMutex;
-#endif
-
-/// buffer for __cxa_demangle() which is allocated via malloc() - unfortunately, this is required...
-static char* s_demangleBuffer = nullptr;
-/// allocated size of s_demangleBufferSize
-static size_t s_demangleBufferSize = 0;
-
-size_t demangle(const char* name, char* buf, const size_t bufSize)
+template <class Func>
+OOOPSI_FORCE_INLINE size_t collectStackTrace(Func&& handler,
+                                             const size_t maxStackFrames = s_MAX_STACK_FRAMES)
 {
-    // shall never happen, but just in case...
-    if (name == nullptr)
-    {
-        name = "<null>";
-    }
-    if (buf == nullptr)
-    {
-        return 0;
-    }
-
-#ifdef _CXXABI_H
-
-    int status = 0;
-    char* demangledName = nullptr;
-
-    // actual demangling can only be done ion a signal-unsafe way (malloc() can't be avoided),
-    // so this isn't available for signal handlers...
-
-    if (s_demangleBuffer == nullptr)
-    {
-        /*
-         * Initial allocation of the demangling buffer.
-         * Unfortunately, __cxa_demangle() requires the use of malloc(). So lets try to allocate
-         * a single buffer which shall be large enough for all subsequent mangling requests.
-         *
-         * Note: This buffer is intentionally leaked because this process is about to terminate
-         * anyway and we don't want to mess with a failing free().
-         */
-        constexpr size_t initSize = 256;
-        s_demangleBuffer = static_cast<char*>(malloc(initSize)); // NOLINT (malloc is required)
-        // if this fails, ignore and let __cxa_demangle() handle the problem
-        if (s_demangleBuffer != nullptr)
-        {
-            s_demangleBufferSize = initSize;
-        }
-    }
-
-    // call GCC's demangler - will realloc() the buffer if needed
-    demangledName = abi::__cxa_demangle(name, s_demangleBuffer, &s_demangleBufferSize, &status);
-
-    if (demangledName != nullptr && status == 0)
-    {
-        // copy the demangled name
-        strncpy(buf, demangledName, bufSize);
-    }
-    else
-    {
-        // may not be C++, but plain C, or demangling is disabled - use the original name
-        strncpy(buf, name, bufSize);
-    }
-
-    // if the buffer was reallocated, update the pointer
-    if (demangledName != nullptr)
-    {
-        s_demangleBuffer = demangledName;
-    }
-#elif defined(OOOPSI_MSVC)
-
-    {
-        const std::lock_guard<DbgHelpMutex> lock(s_dbgHelpMutex);
-        if (UnDecorateSymbolName(name, buf, static_cast<DWORD>(bufSize), UNDNAME_COMPLETE) == 0)
-        {
-            strncpy(buf, name, bufSize);
-        }
-    }
-
-#else
-
-    // not supported with this OS/compiler
-    strncpy(buf, name, bufSize);
-
-#endif // _CXXABI_H
-
-    return strlen(buf);
-}
-
-static void logFrame(const LogSettings settings, unsigned int num, pointer_t address,
-                     const char* sym, pointer_t offset, const pointer_t* faultAddr)
-{
-    char messageBuffer[512];
-    const char* prefix = "  ";
-    if (faultAddr != nullptr && *faultAddr == address)
-    {
-        prefix = "=>";
-    }
-    snprintf(messageBuffer, sizeof(messageBuffer), "%s#%-2u  %016llx", prefix, num, address);
-
-    if (sym != nullptr)
-    {
-        // append the demangled name + offset
-        strncat(messageBuffer, " in ", sizeof(messageBuffer) - strlen(messageBuffer) - 1);
-        size_t bufLen = strlen(messageBuffer);
-        if (bufLen < sizeof(messageBuffer))
-        {
-            if (settings.demangleNames)
-            {
-                bufLen += demangle(sym, messageBuffer + bufLen, sizeof(messageBuffer) - bufLen);
-            }
-            else
-            {
-                // copy the plain name
-                strncat(messageBuffer, sym, sizeof(messageBuffer) - bufLen - 1);
-                bufLen = strlen(messageBuffer);
-            }
-        }
-        if (bufLen < sizeof(messageBuffer))
-        {
-            snprintf(messageBuffer + bufLen, sizeof(messageBuffer) - bufLen, "+0x%llx", offset);
-        }
-    }
-    // else: no symbol name, keep the address
-
-    settings.logFunc(messageBuffer);
-}
-
-
-void printStackTrace(LogSettings settings, const pointer_t* faultAddr) noexcept
-{
-    if (settings.logFunc == nullptr)
-    {
-        settings.logFunc = getAbortLogFunc();
-    }
-
-    settings.logFunc("---------- BACKTRACE ----------");
+    size_t numberOfFrames = 0;
 
 // OS-specific back trace
 #ifdef OOOPSI_WINDOWS
@@ -212,12 +61,14 @@ void printStackTrace(LogSettings settings, const pointer_t* faultAddr) noexcept
 
         const BOOL symInitOk = SymInitialize(thisProc, NULL, TRUE);
         void* stackFrames[s_MAX_STACK_FRAMES];
-        WORD numberOfFrames = RtlCaptureStackBackTrace(0, s_MAX_STACK_FRAMES, stackFrames, NULL);
+        auto numFrames = std::min(s_MAX_STACK_FRAMES, maxStackFrames);
+        numberOfFrames =
+          RtlCaptureStackBackTrace(0, static_cast<DWORD>(numFrames), stackFrames, NULL);
 
         char symBuffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
         PSYMBOL_INFO pSymbol = reinterpret_cast<PSYMBOL_INFO>(symBuffer);
 
-        for (WORD i = 0; i < numberOfFrames; ++i)
+        for (size_t i = 0; i < numberOfFrames; ++i)
         {
             const DWORD64 address = reinterpret_cast<DWORD64>(stackFrames[i]);
 
@@ -236,7 +87,7 @@ void printStackTrace(LogSettings settings, const pointer_t* faultAddr) noexcept
                 }
             }
 
-            logFrame(settings, i, address, symName, dwDisplacement, faultAddr);
+            handler(i, stackFrames[i], symName, dwDisplacement);
         }
 
         SymCleanup(thisProc);
@@ -250,7 +101,6 @@ void printStackTrace(LogSettings settings, const pointer_t* faultAddr) noexcept
     unw_getcontext(&context);
     unw_init_local(&cursor, &context);
 
-    unsigned int i = 0;
     while (unw_step(&cursor) > 0)
     {
         unw_word_t offset, pc;
@@ -260,12 +110,8 @@ void printStackTrace(LogSettings settings, const pointer_t* faultAddr) noexcept
             break;
         }
 
-        if (i >= s_MAX_STACK_FRAMES)
+        if (numberOfFrames >= maxStackFrames)
         {
-            // we reached the maximum depth
-            char messageBuffer[512];
-            snprintf(messageBuffer, sizeof(messageBuffer), "  #%-2u ... (truncating)", i);
-            settings.logFunc(messageBuffer);
             break;
         }
 
@@ -276,8 +122,8 @@ void printStackTrace(LogSettings settings, const pointer_t* faultAddr) noexcept
             symName = symBuffer;
         }
 
-        logFrame(settings, i, pc, symName, offset, faultAddr);
-        i++;
+        handler(numberOfFrames, reinterpret_cast<pointer_t>(pc), symName, offset);
+        numberOfFrames++;
     }
 
 #else
@@ -286,9 +132,87 @@ void printStackTrace(LogSettings settings, const pointer_t* faultAddr) noexcept
 
 #endif // OOOPSI_WINDOWS/LINUX
 
+    return numberOfFrames;
+}
+
+
+static void logFrame(const LogSettings settings, uint64_t num, pointer_t address, const char* sym,
+                     uint64_t offset, const pointer_t* faultAddr)
+{
+    char messageBuffer[512];
+    const char* prefix = "  ";
+    if (faultAddr != nullptr && *faultAddr == address)
+    {
+        prefix = "=>";
+    }
+    snprintf(messageBuffer, sizeof(messageBuffer), "%s#%-2" PRIu64 "  %p", prefix, num, address);
+
+    if (sym != nullptr)
+    {
+        // append the demangled name + offset
+        strncat(messageBuffer, " in ", sizeof(messageBuffer) - strlen(messageBuffer) - 1);
+        size_t bufLen = strlen(messageBuffer);
+        if (bufLen < sizeof(messageBuffer))
+        {
+            if (settings.demangleNames)
+            {
+                std::string demangled = demangle(sym);
+                strncat(messageBuffer, demangled.c_str(), sizeof(messageBuffer) - bufLen - 1);
+            }
+            else
+            {
+                // copy the plain name
+                strncat(messageBuffer, sym, sizeof(messageBuffer) - bufLen - 1);
+            }
+            bufLen = strlen(messageBuffer);
+        }
+        if (bufLen < sizeof(messageBuffer))
+        {
+            snprintf(messageBuffer + bufLen, sizeof(messageBuffer) - bufLen, "+0x%" PRIx64, offset);
+        }
+    }
+    // else: no symbol name, keep the address
+
+    settings.logFunc(messageBuffer);
+}
+
+
+void printStackTrace(LogSettings settings, const pointer_t* faultAddr)
+{
+    if (settings.logFunc == nullptr)
+    {
+        settings.logFunc = getAbortLogFunc();
+    }
+
+    settings.logFunc("---------- BACKTRACE ----------");
+
+    size_t n =
+      collectStackTrace([&](uint64_t num, pointer_t address, const char* symbol, uint64_t offset) {
+          logFrame(settings, num, address, symbol, offset, faultAddr);
+      });
+    if (n == s_MAX_STACK_FRAMES)
+    {
+        // the trace is (probably) truncated
+        char messageBuffer[512];
+        uint64_t num = n;
+        snprintf(messageBuffer, sizeof(messageBuffer), "  #%-2" PRIu64 " ... (truncating)", num);
+        settings.logFunc(messageBuffer);
+    }
+
     settings.logFunc("-------------------------------");
     // END
     settings.logFunc(nullptr);
+}
+
+size_t collectStackTrace(StackFrame* buffer, size_t bufferSize) noexcept
+{
+    return collectStackTrace(
+      [&](uint64_t num, pointer_t address, const char* symbol, uint64_t offset) {
+          buffer[num].address = address;
+          buffer[num].function = demangle(symbol);
+          buffer[num].offset = offset;
+      },
+      bufferSize);
 }
 
 } // namespace ooopsi

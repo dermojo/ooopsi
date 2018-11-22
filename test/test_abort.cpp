@@ -1,3 +1,9 @@
+/**
+ * @file    test_abort.cpp
+ *
+ * Unit tests for the abort() function and the related hooks.
+ */
+
 #include "ooopsi.hpp"
 #include "test_helper.hpp"
 
@@ -94,52 +100,6 @@ static std::string makeBtRegexTerm(const char* prefix, const char* reason)
 
 #endif // OOOPSI_WINDOWS
 
-static ooopsi::HandlerSetup s_setup;
-
-static size_t s_stackTraceNumLines = 0;
-static bool s_stackTraceEndsWithNULL = false;
-
-/**
- * Appends the given line to s_stackTrace, appending '\n'.
- * Note: not thread safe.
- *
- * @param[in] line      line text (may be nullptr)
- */
-static void writeStackTrace(const char* line)
-{
-    s_stackTraceEndsWithNULL = (line == nullptr);
-    if (line)
-    {
-        ++s_stackTraceNumLines;
-    }
-}
-
-static void onSignal(int)
-{
-    ooopsi::AbortSettings settings;
-    settings.logFunc = writeStackTrace;
-    ooopsi::printStackTrace(settings);
-}
-
-TEST(Abort, StackTrace)
-{
-// generate a stack trace
-
-#ifdef SIGINT
-    // --> for ThreadSanitizer, call it from a signal handler
-    signal(SIGINT, onSignal);
-    raise(SIGINT);
-    signal(SIGINT, SIG_IGN);
-#else
-    onSignal(0);
-#endif // SIGINT
-
-    // simple comparison (this test's main intend is to have the sanitizers or valgrind check the
-    // print function without crashing the current process)
-
-    ASSERT_GE(s_stackTraceNumLines, 2u);
-    ASSERT_TRUE(s_stackTraceEndsWithNULL);
-}
 
 TEST(Abort, AbortDeath)
 {
