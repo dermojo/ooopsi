@@ -7,6 +7,11 @@
 #include "internal.hpp"
 #include "ooopsi.hpp"
 
+#ifdef OOOPSI_MSVC
+// gmock triggers a warning because an ignored warning doesn't exist ... :(
+#pragma warning(push)
+#pragma warning(disable : 4619)
+#endif
 #include <gmock/gmock-matchers.h>
 #include <gtest/gtest.h>
 
