@@ -66,6 +66,15 @@ matrix:
             - g++-8
             - libunwind8-dev
       env: MYCC=gcc-8 MYCXX=g++-8 ENABLE_ASAN=on
+    - compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-8
+            - libunwind8-dev
+      env: MYCC=gcc-8 MYCXX=g++-8 ENABLE_TSAN=on
     - compiler: clang
       addons:
         apt:
@@ -147,6 +156,11 @@ script:
   - |
     if [[ -n "$ENABLE_ASAN" ]] ; then
       ADD_OPTS="$ADD_OPTS -DENABLE_ASAN=$ENABLE_ASAN"
+      BUILD_TYPE=Debug
+    fi
+  - |
+    if [[ -n "$ENABLE_TSAN" ]] ; then
+      ADD_OPTS="$ADD_OPTS -DENABLE_TSAN=$ENABLE_TSAN"
       BUILD_TYPE=Debug
     fi
   - |

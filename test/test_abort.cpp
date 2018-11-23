@@ -218,5 +218,4 @@ TEST(Abort, IllegalInstructionDeath)
                  "!!! TERMINATING DUE TO ILLEGAL INSTRUCTION.*\n.*BACKTRACE.*");
 }
 
-// TODO: multi-threaded
 // TODO: Windows-specific tests

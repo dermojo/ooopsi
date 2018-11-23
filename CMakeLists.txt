@@ -110,6 +110,13 @@ if(ENABLE_ASAN)
     set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fsanitize=address")
 endif()
 
+option(ENABLE_TSAN "Enable thread sanitizer instrumentation" OFF)
+
+if(ENABLE_TSAN)
+    set(CMAKE_CXX_FLAGS    "${CMAKE_CXX_FLAGS}    -fsanitize=thread")
+    set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fsanitize=thread")
+endif()
+
 option(ENABLE_UBSAN "Enable UB sanitizer instrumentation" OFF)
 
 if(ENABLE_UBSAN)
