@@ -57,6 +57,15 @@ matrix:
             - g++-8
             - libunwind8-dev
       env: MYCC=gcc-8 MYCXX=g++-8 ENABLE_UBSAN=on
+    - compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-8
+            - libunwind8-dev
+      env: MYCC=gcc-8 MYCXX=g++-8 ENABLE_ASAN=on
     - compiler: clang
       addons:
         apt:

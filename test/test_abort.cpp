@@ -9,6 +9,15 @@
 
 #include <gtest/gtest.h>
 
+// detect compilation with AddressSanitizer: we need to exclude some bad stuff here...
+#ifdef __SANITIZE_ADDRESS__
+#define OOOPSI_ASAN
+#elif defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#define OOOPSI_ASAN
+#endif
+#endif
+
 // allow detection of wine because there are some differences...
 #ifdef OOOPSI_WINDOWS
 bool isWine() noexcept
@@ -154,6 +163,10 @@ TEST(Abort, CrashVirtualDeath)
 
 TEST(Abort, SegmentationFaultDeath)
 {
+#ifdef OOOPSI_ASAN
+    GTEST_SKIP();
+#endif
+
     // general fault
     ASSERT_DEATH(
       failSegmentationFault(),
@@ -185,6 +198,10 @@ TEST(Abort, SegmentationFaultDeath)
 
 TEST(Abort, FloatingPointDeath)
 {
+#ifdef OOOPSI_ASAN
+    GTEST_SKIP();
+#endif
+
     ASSERT_DEATH(
       failFloatingPointIntDiv(),
       makeBtRegex("!!! TERMINATING DUE TO FLOATING POINT ERROR \\(integer divide by zero.*"));
