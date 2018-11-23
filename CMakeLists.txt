@@ -20,6 +20,8 @@ add_library(ooopsi SHARED
         src/demangle.cpp
     )
 target_compile_options(ooopsi PRIVATE -DOOOPSI_BUILDING_SHARED_LIB)
+set_target_properties(ooopsi PROPERTIES CXX_VISIBILITY_PRESET hidden)
+set_target_properties(ooopsi PROPERTIES CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 
 # Every library has unit tests, of course
 add_executable(tests    test/test_abort.cpp test/test_trace.cpp test/test_demangle.cpp)

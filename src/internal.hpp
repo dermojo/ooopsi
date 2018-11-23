@@ -50,7 +50,6 @@
 #include <windows.h>
 #endif
 
-// TODO: make hidden
 namespace ooopsi
 {
 
