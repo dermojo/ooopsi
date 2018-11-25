@@ -48,33 +48,6 @@ matrix:
             - g++-8
             - libunwind8-dev
       env: MYCC=gcc-8 MYCXX=g++-8
-    - compiler: gcc
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-8
-            - libunwind8-dev
-      env: MYCC=gcc-8 MYCXX=g++-8 ENABLE_UBSAN=on
-    - compiler: gcc
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-8
-            - libunwind8-dev
-      env: MYCC=gcc-8 MYCXX=g++-8 ENABLE_ASAN=on
-    - compiler: gcc
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-8
-            - libunwind8-dev
-      env: MYCC=gcc-8 MYCXX=g++-8 ENABLE_TSAN=on
     - compiler: clang
       addons:
         apt:
@@ -125,6 +98,16 @@ matrix:
             - clang-6.0
             - libunwind8-dev
       env: MYCC=clang-6.0 MYCXX=clang++-6.0
+    - compiler: clang-7
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-xenial-7
+          packages:
+            - clang-7.0
+            - libunwind8-dev
+      env: MYCC=clang MYCXX=clang++
     - compiler: clang
       addons:
         apt:
@@ -132,9 +115,27 @@ matrix:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-xenial-7
           packages:
-            - clang-6.0
+            - clang-7.0
             - libunwind8-dev
-      env: MYCC=clang MYCXX=clang++
+      env: MYCC=clang MYCXX=clang++ ENABLE_UBSAN=on
+    - compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-8
+            - libunwind8-dev
+      env: MYCC=gcc-8 MYCXX=g++-8 ENABLE_ASAN=on
+    - compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-8
+            - libunwind8-dev
+      env: MYCC=gcc-8 MYCXX=g++-8 ENABLE_TSAN=on
     - compiler: gcc
       addons:
         apt:
