@@ -56,6 +56,7 @@ matrix:
           packages:
             - g++-8
             - libunwind8-dev
+            - lcov
       env: MYCC=gcc-8 MYCXX=g++-8 CODE_COVERAGE=on
     - compiler: clang
       addons:
