@@ -127,6 +127,11 @@ endif()
 
 option(ENABLE_COVERAGE "Enable code coverage flags" OFF)
 
+if(ENABLE_COVERAGE)
+    set(CMAKE_CXX_FLAGS    "${CMAKE_CXX_FLAGS}    -fprofile-arcs -ftest-coverage")
+    set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fprofile-arcs -ftest-coverage")
+endif()
+
 
 # run clang-format on all files
 list(APPEND CLANG_FORMAT_ARGS
