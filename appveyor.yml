@@ -3,13 +3,11 @@
 image:
   - Visual Studio 2015
   - Visual Studio 2017
-
-platform:
-  - x64
+  - Visual Studio 2019
 
 environment:
   matrix:
-    - arch: Win64
+    - arch: x64
       configuration: Release
 
 install:
@@ -17,12 +15,10 @@ install:
   - git submodule update --init --recursive
 
 build_script:
-  - if "%APPVEYOR_BUILD_WORKER_IMAGE%"=="Visual Studio 2017" ( set generator="Visual Studio 15 2017 %arch%" )
-  - if "%APPVEYOR_BUILD_WORKER_IMAGE%"=="Visual Studio 2015" ( set generator="Visual Studio 14 2015 %arch%" )
   - md build
   - cd build
-  - cmake .. -G %generator%
-  - cmake --build . --config %CONFIGURATION%
+  - cmake .. -A %arch%
+  - cmake --build . --config %configuration%
 
 test_script:
   - ctest -VV
