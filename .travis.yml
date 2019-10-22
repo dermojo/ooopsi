@@ -137,16 +137,6 @@ matrix:
             - clang-8
             - libunwind8-dev
       env: MYCC=clang MYCXX=clang++
-    - compiler: clang-9
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-            - llvm-toolchain-xenial-9
-          packages:
-            - clang-9
-            - libunwind8-dev
-      env: MYCC=clang MYCXX=clang++
     - compiler: clang-7
       addons:
         apt:
