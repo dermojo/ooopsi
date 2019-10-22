@@ -139,7 +139,7 @@ OOOPSI_FORCE_INLINE size_t collectStackTrace(Func&& handler,
 static void logFrame(const LogSettings settings, uint64_t num, pointer_t address, const char* sym,
                      uint64_t offset, const pointer_t* faultAddr)
 {
-    char messageBuffer[512];
+    char messageBuffer[1024];
     const char* prefix = "  ";
     if (faultAddr != nullptr && *faultAddr == address)
     {
@@ -161,8 +161,15 @@ static void logFrame(const LogSettings settings, uint64_t num, pointer_t address
             }
             else
             {
-                // copy the plain name
+                // copy the plain name (may get truncated)
+#ifdef OOOPSI_GCC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif
                 strncat(messageBuffer, sym, sizeof(messageBuffer) - bufLen - 1);
+#ifdef OOOPSI_GCC
+#pragma GCC diagnostic pop
+#endif
             }
             bufLen = strlen(messageBuffer);
         }
