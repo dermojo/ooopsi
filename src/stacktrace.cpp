@@ -164,6 +164,7 @@ static void logFrame(const LogSettings settings, uint64_t num, pointer_t address
                 // copy the plain name (may get truncated)
 #ifdef OOOPSI_GCC
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragma"
 #pragma GCC diagnostic ignored "-Wstringop-truncation"
 #endif
                 strncat(messageBuffer, sym, sizeof(messageBuffer) - bufLen - 1);
