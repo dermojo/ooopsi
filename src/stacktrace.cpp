@@ -37,6 +37,7 @@ namespace ooopsi
 {
 
 #ifdef OOOPSI_WINDOWS
+// access to the debug help API must be serialized
 DbgHelpMutex s_dbgHelpMutex;
 #endif
 
