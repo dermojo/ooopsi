@@ -137,34 +137,33 @@ matrix:
             - clang-8
             - libunwind8-dev
       env: MYCC=clang MYCXX=clang++
-    - compiler: clang-7
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-            - llvm-toolchain-xenial-7
-          packages:
-            - clang-7
-            - libunwind8-dev
-      env: MYCC=clang MYCXX=clang++ ENABLE_UBSAN=on
-    - compiler: gcc-8
+    - compiler: gcc-9
       addons:
         apt:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-8
+            - g++-9
             - libunwind8-dev
-      env: MYCC=gcc-8 MYCXX=g++-8 ENABLE_ASAN=on
-    - compiler: gcc-8
+      env: MYCC=gcc-9 MYCXX=g++-9 ENABLE_UBSAN=on
+    - compiler: gcc-9
       addons:
         apt:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-8
+            - g++-9
             - libunwind8-dev
-      env: MYCC=gcc-8 MYCXX=g++-8 ENABLE_TSAN=on
+      env: MYCC=gcc-9 MYCXX=g++-9 ENABLE_ASAN=on
+    - compiler: gcc-9
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-9
+            - libunwind8-dev
+      env: MYCC=gcc-9 MYCXX=g++-9 ENABLE_TSAN=on
     - compiler: x86_64-w64-mingw32-g++
       addons:
         apt:
