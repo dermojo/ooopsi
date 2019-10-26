@@ -137,15 +137,15 @@ matrix:
             - clang-8
             - libunwind8-dev
       env: MYCC=clang MYCXX=clang++
-    - compiler: gcc-9
+    - compiler: gcc-8
       addons:
         apt:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-9
+            - g++-8
             - libunwind8-dev
-      env: MYCC=gcc-9 MYCXX=g++-9 ENABLE_UBSAN=on
+      env: MYCC=gcc-8 MYCXX=g++-8 ENABLE_UBSAN=on
     - compiler: gcc-9
       addons:
         apt:
@@ -195,7 +195,6 @@ script:
   - |
     if [[ -n "$ENABLE_UBSAN" ]] ; then
       ADD_OPTS="$ADD_OPTS -DENABLE_UBSAN=$ENABLE_UBSAN"
-      ADD_OPTS="$ADD_OPTS -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold"
       BUILD_TYPE=Debug
     fi
   - |
