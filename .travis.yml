@@ -195,6 +195,7 @@ script:
   - |
     if [[ -n "$ENABLE_UBSAN" ]] ; then
       ADD_OPTS="$ADD_OPTS -DENABLE_UBSAN=$ENABLE_UBSAN"
+      ADD_OPTS="$ADD_OPTS -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold"
       BUILD_TYPE=Debug
     fi
   - |
