@@ -137,15 +137,16 @@ matrix:
             - clang-8
             - libunwind8-dev
       env: MYCC=clang MYCXX=clang++
-    - compiler: gcc-8
+    - compiler: clang-8
       addons:
         apt:
           sources:
             - ubuntu-toolchain-r-test
+            - llvm-toolchain-xenial-8
           packages:
-            - g++-8
+            - clang-8
             - libunwind8-dev
-      env: MYCC=gcc-8 MYCXX=g++-8 ENABLE_UBSAN=on
+      env: MYCC=clang MYCXX=clang++ ENABLE_UBSAN=on
     - compiler: gcc-9
       addons:
         apt:
