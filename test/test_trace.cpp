@@ -132,7 +132,7 @@ static void onSignal(int)
 
 TEST(StackTrace, Generate)
 {
-// generate a stack trace
+    // generate a stack trace
 
 #ifdef SIGINT
     // --> for ThreadSanitizer, call it from a signal handler
