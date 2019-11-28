@@ -49,8 +49,7 @@ LogFunc getAbortLogFunc() noexcept
     return s_logFunc;
 }
 
-[[noreturn]] void abort(const char* reason, AbortSettings settings, const pointer_t* faultAddr)
-{
+[[noreturn]] void abort(const char* reason, AbortSettings settings, const pointer_t* faultAddr) {
     if (settings.logFunc == nullptr)
     {
         settings.logFunc = getAbortLogFunc();
@@ -75,7 +74,7 @@ LogFunc getAbortLogFunc() noexcept
     std::_Exit(OOOPSI_EXIT_CODE);
 }
 
-[[noreturn]] void abort(const char* reason, AbortSettings settings)
+  [[noreturn]] void abort(const char* reason, AbortSettings settings)
 {
     // note: 'settings' is a POD, so std::move() has no effect here
     abort(reason, settings, nullptr);
