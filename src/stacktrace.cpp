@@ -19,6 +19,7 @@
 #pragma warning(pop)
 #endif // OOOPSI_MSVC
 #else
+#define UNW_LOCAL_ONLY
 #include <libunwind.h>
 #endif
 
