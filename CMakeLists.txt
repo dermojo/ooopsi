@@ -56,16 +56,16 @@ target_link_libraries(crasher_ooopsi ooopsi)
 target_compile_options(crasher_ooopsi PRIVATE -DUSE_OOOPSI)
 
 # add libunwind for all *NIX systems
-if (UNIX)
+if(UNIX)
     find_library(LIBUNWIND_LIBRARIES NAMES unwind-x86_64 unwind)
     if(NOT LIBUNWIND_LIBRARIES)
         message(FATAL_ERROR "libunwind not found")
     endif()
     target_link_libraries(ooopsi ${LIBUNWIND_LIBRARIES})
-endif (UNIX)
-if (WIN32)
+endif()
+if(WIN32)
     target_link_libraries(ooopsi imagehlp)
-endif (WIN32)
+endif()
 
 set_property(TARGET ooopsi          PROPERTY CXX_STANDARD 11)
 set_property(TARGET ooopsi          PROPERTY CXX_STANDARD_REQUIRED ON)
@@ -79,7 +79,7 @@ set_property(TARGET crasher_ooopsi  PROPERTY CXX_STANDARD_REQUIRED ON)
 # We want a lot of warnings!
 # (see https://github.com/lefticus/cppbestpractices/blob/master/02-Use_the_Tools_Available.md)
 if(MSVC)
-    SET(OOOPSI_WARNINGS /W4 /WX
+    set(OOOPSI_WARNINGS /W4 /WX
                         /w14242 /w14254 /w14263 /w14265 /w14287 /we4289 /w14296 /w14311 /w14545
                         /w14546 /w14547 /w14549 /w14555 /w14619 /w14640 /w14826 /w14905 /w14906
                         /w14928)
@@ -87,13 +87,13 @@ if(MSVC)
     target_compile_options(tests            PRIVATE ${OOOPSI_WARNINGS})
     target_compile_options(crasher_plain    PRIVATE ${OOOPSI_WARNINGS})
     target_compile_options(crasher_ooopsi   PRIVATE ${OOOPSI_WARNINGS})
-    
+
     # Prevent deprecation errors for std::tr1 in googletest
     target_compile_options(tests PRIVATE /D_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING)
     # Disable deprecation warnings - we need the same C functions on all platforms
     target_compile_options(ooopsi PRIVATE /D_CRT_SECURE_NO_WARNINGS)
 else()
-    SET(OOOPSI_WARNINGS -Wall -Werror -Wextra -Wshadow -Wold-style-cast -Wcast-align -Wunused
+    set(OOOPSI_WARNINGS -Wall -Werror -Wextra -Wshadow -Wold-style-cast -Wcast-align -Wunused
                         -Wpedantic -Wconversion -Wsign-conversion -Wformat=2)
     target_compile_options(ooopsi           PRIVATE ${OOOPSI_WARNINGS})
     target_compile_options(tests            PRIVATE ${OOOPSI_WARNINGS})
