@@ -57,7 +57,7 @@ target_compile_options(crasher_ooopsi PRIVATE -DUSE_OOOPSI)
 
 # add libunwind for all *NIX systems
 if(UNIX)
-    find_library(LIBUNWIND_LIB_PLA  unwind-x86_64)
+    find_library(LIBUNWIND_LIB_PLA  unwind-${CMAKE_SYSTEM_PROCESSOR})
     find_library(LIBUNWIND_LIB_MAIN unwind)
     if(NOT LIBUNWIND_LIB_PLA OR NOT LIBUNWIND_LIB_MAIN)
         message(FATAL_ERROR "libunwind not found")
