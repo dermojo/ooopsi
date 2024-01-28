@@ -8,7 +8,7 @@
 #ifndef OOOPSI_HPP_
 #define OOOPSI_HPP_
 
-#include <cstdint>
+#include <cstddef>
 #include <string>
 
 #ifdef _MSC_VER
@@ -51,10 +51,8 @@ struct AbortSettings : LogSettings
     bool printStackTrace = true;
 };
 
-/// Prints a stack trace using the given log function.
-/// The second argument indicates whether this function is called from a signal handler.
-/// In this case, the functionality is limited.
-/// The optional third argument is the address of the fault, used to highlight the according
+/// Prints a stack trace using the given log settings.
+/// The optional second argument is the address of the fault, used to highlight the according
 /// line in the backtrace (if found).
 ///
 /// Note: only throws if the log function does (and it shouldn't...) or memory allocation
@@ -98,10 +96,11 @@ inline std::string demangle(const std::string& symbol)
 }
 
 /// Aborts the current process' execution, similar to std::abort, but logs a stack trace and the
-/// given reason (if given).
+/// given reason (optional).
 ///
-/// The stack trace is logged using the current log function, which can be set via setAbortFunc().
-/// The default will print to STDERR.
+/// The stack trace is logged using the log function provided in the settings (if specified), or
+/// else the current log function set via setAbortFunc().
+/// The default lgo function will print to STDERR.
 ///
 /// @param reason               optional reason for program termination
 /// @param settings             controls log function etc.
@@ -130,6 +129,12 @@ class OOOPSI_EXPORT HandlerSetup
 public:
     HandlerSetup() noexcept;
     ~HandlerSetup();
+
+    // not copyable or movable
+    HandlerSetup(const HandlerSetup&) = delete;
+    HandlerSetup& operator=(const HandlerSetup&) = delete;
+    HandlerSetup(HandlerSetup&&) = delete;
+    HandlerSetup& operator=(HandlerSetup&&) = delete;
 };
 
 

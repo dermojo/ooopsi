@@ -3,9 +3,8 @@
  * @brief   function name de-mangling implementation
  */
 
-#include "internal.hpp"
+#include "ooopsi.hpp"
 
-// for compilers that support it...
 #ifdef OOOPSI_MSVC
 #include <windows.h>
 // ensure proper include order...
