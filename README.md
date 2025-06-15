@@ -1,5 +1,7 @@
 # ooopsi
 
+***This repository has moved to Codeberg: https://codeberg.org/dermojo/ooopsi***
+
 [![Travis-CI status](https://travis-ci.org/dermojo/ooopsi.svg?branch=master)](https://travis-ci.org/dermojo/ooopsi)
 [![AppVeyor status](https://ci.appveyor.com/api/projects/status/github/dermojo/ooopsi?branch=master&svg=true)](https://ci.appveyor.com/project/dermojo/ooopsi)
 [![codecov](https://codecov.io/gh/dermojo/ooopsi/branch/master/graph/badge.svg)](https://codecov.io/gh/dermojo/ooopsi)
